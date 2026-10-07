@@ -5,6 +5,11 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added
+- Interface scaling for high-resolution screens. The classic HUD, chat, windows, login and character screens grow with the screen height (1080p = 100%), with your own preference on top: Ctrl + = / - / 0 in-game, or `UI.Scale` in the config. Text stays sharp, and the minimap and other canvas UI follow the same setting. Mouse hover, clicks, dragging and nameplates stay aligned.
+- Interface icons and images are drawn from the texture pack, so the larger interface stays sharp.
+- DevBridge commands `hdui` (screen, UI options, canvases), `setuiscale` and `openwindow`.
+
 ## [0.1.0] - 2026-10-08
 ### Added
 - Runtime texture replacer plugin (BepInEx 5, net35):

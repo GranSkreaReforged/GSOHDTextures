@@ -174,6 +174,9 @@ namespace GSOHDTextures
             }
         }
 
+        /// <summary>HD version of an interface image drawn with GUI.DrawTexture, or null. Called every frame, so it only does lookups after the first time.</summary>
+        internal Texture2D UiReplacement(Texture tex) => Replace(tex, false, out _);
+
         // The replacement for a texture the game is using, or null if there is none or it's already replaced.
         private Texture2D Replace(Texture tex, bool linear, out Texture2D original)
         {

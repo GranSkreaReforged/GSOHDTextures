@@ -21,6 +21,17 @@ game assets ──dump.ps1──▶ work/dump/<key>.png ──upscale.ps1──�
 - **Plugin:** at scene load and every few seconds, it scans all materials (and terrain splat and detail textures). When a texture has a matching file, it loads that file once and points the material at it. Packs are BC7 `.dds` files with mipmaps, uploaded to the GPU as-is. A hand-made `.png` also works; it is decoded and compressed in-game, which is slower.
 - **Upscaling:** Real-ESRGAN x4 runs on a wrap-padded copy of each texture so tiling edges stay seamless. The result is cropped and Lanczos-resized to `-Scale` (default 2×, max 4096). Its brightness and colour are corrected back to the original's (the AI only adds detail), and alpha is restored from the original. Normal, height, metallic, gloss, AO and mask maps get a plain resize, because AI detail breaks lighting.
 
+## Interface scaling
+
+The classic interface (HUD, hotbar, chat, every window, the login and character screens) is drawn at 1:1 pixels, so it gets tiny on 1440p, ultrawide and 4K screens. The plugin scales it:
+
+- **Automatic:** the interface looks as it was designed on a 1080p screen: 133% at 1440p, 200% at 4K.
+- **Your preference on top:** **Ctrl + =** and **Ctrl + -** change it in 5% steps, **Ctrl + 0** resets it. The new size shows briefly on screen and is saved to `UI.Scale`.
+- The newer canvas parts (minimap, zone name) follow the same preference.
+- Icons and other interface images are drawn from the texture pack when it has them, so they stay sharp. Text is re-rendered at the new size, not magnified.
+
+Turn it off with `UI.Enabled = false`, or set `UI.AutoScale = false` to use native pixels times `UI.Scale`. The game's own `/scalegui` console mode (a stretch to a fixed size) takes precedence when it's on.
+
 ## Building a texture pack
 
 Requirements: Windows, Python 3.10+, a Vulkan-capable GPU, and the plugin installed (next section). The Python venv and the pinned, hash-checked Real-ESRGAN build are set up automatically on first use.
@@ -63,6 +74,11 @@ Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 | `Debug.ReloadKey` | F9 | |
 | `Debug.LogReplacements` | false | |
 | `Debug.RecordSeenTextures` | false | writes `BepInEx/GSOHDTextures-seen.txt` |
+| `UI.Enabled` | true | scale the interface (restart to switch completely) |
+| `UI.AutoScale` | true | grow with the screen height (1080 px = 100%) |
+| `UI.Scale` | 1 | your preference on top, 0.5 to 3; also Ctrl + = / - / 0 in-game |
+| `UI.HdTextures` | true | draw interface images from the texture pack |
+| `UI.ScaleUpKey` / `ScaleDownKey` / `ScaleResetKey` | Ctrl + = / - / 0 | |
 
 The game folder is found automatically in any Steam library. Override it with `-GameDir`, `GSO_GAME_DIR` or `-p:GameDir=`.
 
@@ -72,7 +88,8 @@ The game folder is found automatically in any Steam library. Override it with `-
 
 ## Known limitations / roadmap
 
-- UI sprites (UGUI `Image`) are not replaced yet. A sprite's rect is in pixels, so it needs rebuilding at the new scale.
+- Canvas sprites (UGUI `Image`, e.g. the minimap frame) are not replaced with HD versions yet. A sprite's rect is in pixels, so it needs rebuilding at the new scale. Window frames drawn from the GUI skin are scaled but not replaced either; they hold up well up to about 2x.
+- At large scales on ultrawide screens the minimap (which also grows with screen width) can touch the HUD buttons next to it.
 - Only the shader properties in `TextureReplacer.BuiltInProperties` are checked (Unity 2017.4 can't list them at runtime). The list was mined from the game's materials with `tools/textures/props.py`; add others with `ExtraTextureProperties`.
 - Textures load on the main thread. DDS loading is fast, but entering a new area with hundreds of new textures still takes a moment longer than stock.
 - BC7 needs DirectX 11. Under DirectX 9 the plugin ignores `.dds` files and says so in the log.

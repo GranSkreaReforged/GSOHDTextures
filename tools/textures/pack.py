@@ -2,8 +2,8 @@
 
 Source per texture, first match wins:
   1. <work>/overrides/<key>.png   hand-made or hand-fixed, used at its own size
-  2. <work>/upscaled/<key>.png    AI output (wrap padding cropped off, resized to the target)
-  3. normal maps, and textures bigger than prep.py's --max-input: Lanczos resize of the original
+  2. <work>/upscaled/<key>.png    AI output (wrap padding cropped off, resized to the target, tone-matched)
+  3. normal and other data maps, and textures bigger than prep.py's --max-input: Lanczos resize of the original
 Anything else (not upscaled yet) is left out, so the game keeps its original.
 
 usage: pack.py <work dir> [--scale 2] [--max-size 4096] [--only-list FILE] [--max-input 2048]
@@ -12,16 +12,31 @@ import argparse
 import os
 import sys
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageFilter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # run with -I, which drops the script dir
-from common import is_normal_map, load_index, wrap_pad
+from common import is_data_map, load_index, wrap_pad
 
 
 def target_size(w, h, scale, max_size):
     f = min(scale, max_size / max(w, h))
     # DXT compression in the plugin needs multiples of 4.
     return max(4, round(w * f / 4) * 4), max(4, round(h * f / 4) * 4)
+
+
+# Radius, in original pixels, of the colour/brightness correction. Small enough to keep the AI's
+# detail, large enough not to bring back the original's compression noise.
+TONE_BLUR = 1.5
+
+
+def tone_match(rgb, original):
+    """Correct the AI output's low frequencies so it averages back to the original. Real-ESRGAN drifts
+    in brightness and colour (one grass splat came out 45% darker); the detail it adds is kept."""
+    src = original.convert('RGB')
+    blur = ImageFilter.GaussianBlur(TONE_BLUR)
+    down = rgb.resize(src.size, Image.BOX)
+    diff = ImageChops.subtract(src.filter(blur), down.filter(blur), 1, 128)
+    return ImageChops.add(rgb, diff.resize(rgb.size, Image.BICUBIC), 1, -128)
 
 
 def with_alpha(rgb, original, size):
@@ -53,15 +68,15 @@ def build(e, work, scale, max_size, max_input):
         original.load()
 
     upscaled = os.path.join(work, 'upscaled', key + '.png')
-    if os.path.exists(upscaled):
+    if os.path.exists(upscaled) and not is_data_map(e):  # ignore AI output left from before a rule change
         with Image.open(upscaled) as up:
             up.load()
         pad = wrap_pad(w, h)
         f = up.width / (w + 2 * pad)
         rgb = up.crop((round(pad * f), round(pad * f), round((pad + w) * f), round((pad + h) * f)))
-        return with_alpha(rgb.resize(size, Image.LANCZOS), original, size), 'upscaled'
+        return with_alpha(tone_match(rgb.resize(size, Image.LANCZOS), original), original, size), 'upscaled'
 
-    if is_normal_map(e) or max(w, h) > max_input:
+    if is_data_map(e) or max(w, h) > max_input:
         return original.resize(size, Image.LANCZOS), 'resized'
     return None, 'pending'
 

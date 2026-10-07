@@ -13,7 +13,7 @@ import shutil
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # run with -I, which drops the script dir
-from common import is_normal_map, load_index, wrap_pad
+from common import is_data_map, load_index, wrap_pad
 
 
 def padded(im, pad):
@@ -46,7 +46,7 @@ def main():
     staged = 0
     for e in load_index(args.work):
         key = e['key']
-        if 'skip' in e or is_normal_map(e) or max(e['width'], e['height']) > args.max_input:
+        if 'skip' in e or is_data_map(e) or max(e['width'], e['height']) > args.max_input:
             continue
         if only is not None and key not in only:
             continue

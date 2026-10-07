@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BepInEx;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -26,12 +27,27 @@ namespace GSOHDTextures
             public Texture Original;
         }
 
-        // Trailing ! marks linear (non-colour) data.
+        // Trailing ! marks linear (non-colour) data. From tools/textures/props.py over the game's materials;
+        // lookup textures (projectors, LUTs, dithering, water colour ramps) are left out on purpose.
         private static readonly string[] BuiltInProperties =
         {
+            // Unity Standard and terrain
             "_MainTex", "_BumpMap!", "_DetailAlbedoMap", "_DetailNormalMap!", "_DetailMask!", "_EmissionMap",
             "_MetallicGlossMap!", "_SpecGlossMap", "_OcclusionMap!", "_ParallaxMap!",
             "_Splat0", "_Splat1", "_Splat2", "_Splat3", "_Normal0!", "_Normal1!", "_Normal2!", "_Normal3!",
+            // SpeedTree and Tree Creator
+            "_DetailTex", "_BumpSpecMap!", "_TranslucencyMap!",
+            // CW3 environment blend
+            "_Mask!", "_BlendDiffuse2", "_BlendNormal2!", "_DetailAlbedo", "_DetailNormal!", "_Heightmap!",
+            // AQUAS water
+            "_FoamTexture", "_SmallWavesTexture!", "_MediumWavesTexture!", "_LargeWavesTexture!",
+            // KriptoFX effects
+            "_DistortTex!", "_BumpTex!",
+            // Assorted asset-store shaders
+            "_AO!", "_layer1Tex", "_layer1Norm!", "_HeightMap!", "_Metallic!", "_NormalMap!", "_SnowBasecolor",
+            "_MetallicTex!", "_NormalTex!", "_TopTex", "_flame_basecolor", "_Utils_map!",
+            // Skybox/6 Sided
+            "_FrontTex", "_BackTex", "_LeftTex", "_RightTex", "_UpTex", "_DownTex",
         };
 
         private readonly TextureStore store = new TextureStore();
@@ -39,6 +55,8 @@ namespace GSOHDTextures
         private readonly Dictionary<TerrainData, SplatPrototype[]> terrainSplats = new Dictionary<TerrainData, SplatPrototype[]>();
         private readonly Dictionary<TerrainData, DetailPrototype[]> terrainDetails = new Dictionary<TerrainData, DetailPrototype[]>();
         private readonly HashSet<string> seen = new HashSet<string>();
+        // HasProperty depends only on the shader, so each shader is checked against the list once.
+        private readonly Dictionary<Shader, Prop[]> shaderProps = new Dictionary<Shader, Prop[]>();
         private Prop[] props;
         private string seenFile;
         private bool scanPending = true;
@@ -99,9 +117,12 @@ namespace GSOHDTextures
         {
             foreach (var mat in Resources.FindObjectsOfTypeAll<Material>())
             {
-                foreach (var prop in props)
+                var shader = mat.shader;
+                if (shader == null) continue;
+                if (!shaderProps.TryGetValue(shader, out var has))
+                    shaderProps[shader] = has = props.Where(p => mat.HasProperty(p.Id)).ToArray();
+                foreach (var prop in has)
                 {
-                    if (!mat.HasProperty(prop.Id)) continue;
                     var replacement = Replace(mat.GetTexture(prop.Id), prop.Linear, out var original);
                     if (replacement == null) continue;
                     mat.SetTexture(prop.Id, replacement);

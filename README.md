@@ -19,7 +19,7 @@ game assets ──dump.ps1──▶ work/dump/<key>.png ──upscale.ps1──�
 
 - **Key:** every texture is identified as `<name>__<width>x<height>` (the original size), e.g. `Roof_A_A__512x512.png`. Of the game's 4,083 textures, all but 31 have unique keys, and those 31 are duplicates.
 - **Plugin:** at scene load and every few seconds, it scans all materials (and terrain splat and detail textures). When a texture has a matching file, it loads that file once (as an RGBA PNG, GPU-compressed to DXT, with mipmaps) and points the material at it.
-- **Upscaling:** Real-ESRGAN x4 runs on a wrap-padded copy of each texture so tiling edges stay seamless. The result is cropped and Lanczos-resized to `-Scale` (default 2×, max 4096). Alpha is restored from the original. Normal and height maps get a plain resize, because AI detail breaks lighting.
+- **Upscaling:** Real-ESRGAN x4 runs on a wrap-padded copy of each texture so tiling edges stay seamless. The result is cropped and Lanczos-resized to `-Scale` (default 2×, max 4096). Its brightness and colour are corrected back to the original's (the AI only adds detail), and alpha is restored from the original. Normal, height, metallic, gloss, AO and mask maps get a plain resize, because AI detail breaks lighting.
 
 ## Building a texture pack
 
@@ -73,7 +73,7 @@ The game folder is found automatically in any Steam library. Override it with `-
 ## Known limitations / roadmap
 
 - UI sprites (UGUI `Image`) are not replaced yet. A sprite's rect is in pixels, so it needs rebuilding at the new scale.
-- Only the shader properties in `TextureReplacer.BuiltInProperties` are checked. The next step is to mine the game's materials for its custom shader property names.
+- Only the shader properties in `TextureReplacer.BuiltInProperties` are checked (Unity 2017.4 can't list them at runtime). The list was mined from the game's materials with `tools/textures/props.py`; add others with `ExtraTextureProperties`.
 - PNG decoding is synchronous, so a large pack can hitch on scene load. Pre-compressed DDS (texconv BC1/BC3/BC7) with `LoadRawTextureData` would fix that.
 - Lightmaps, reflection probes and font atlases are deliberately left alone.
 

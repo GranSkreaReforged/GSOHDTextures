@@ -5,8 +5,11 @@ import re
 
 FORBIDDEN = set('<>:"/\\|?*')
 
-# Normal and height maps go through a plain Lanczos resize: AI upscalers invent detail that breaks lighting.
-NORMAL_MAP = re.compile(r'(?i)(normal|_nrm|_nm$|_n$|bump|height)')
+# Non-colour data goes through a plain Lanczos resize: AI upscalers invent detail that breaks lighting,
+# and treat masks and gloss/AO maps as noisy photos. Checked against all names in the game's index.
+NORMAL_MAP = re.compile(r'(?i)(norm|nrm|nml|_nm$|_n$|_n[ _]|_nor$|bump|height|_disp)')
+DATA_MAP = re.compile(r'(?i)(metallic|smoothness|gloss|specular|spec$|spec[ _]|occlusion|[ _-]ao$|[ _]ao[ _]|mask'
+                      r'|_m$|(?<!alb)_s$|_s 1$|_r$|roughness|_metall$|[ _]met\d?$)|(?-i:AO$)')
 
 
 def sanitize(name):
@@ -27,5 +30,6 @@ def load_index(work):
         return json.load(f)
 
 
-def is_normal_map(entry):
-    return bool(NORMAL_MAP.search(entry['name']))
+def is_data_map(entry):
+    """Normal, height, metallic, gloss, AO or mask map: resized, never AI-upscaled."""
+    return bool(NORMAL_MAP.search(entry['name']) or DATA_MAP.search(entry['name']))

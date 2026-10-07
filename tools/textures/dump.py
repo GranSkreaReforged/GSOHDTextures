@@ -79,6 +79,16 @@ def main():
             written += 1
         print(f'{f}: {len(this_run)} textures so far', flush=True)
 
+    # Windows file names (and the plugin's lookup) ignore case, so keys differing only in case
+    # (Tex/tex, Candles_Normal/candles_normal) would share one file. Leave those originals alone.
+    by_lower = {}
+    for e in index.values():
+        by_lower.setdefault(e['key'].lower(), []).append(e)
+    for group in by_lower.values():
+        if len(group) > 1:
+            for e in group:
+                e['skip'] = 'case-collision'
+
     entries = sorted(index.values(), key=lambda e: e['key'].lower())
     with open(index_path, 'w', encoding='utf-8') as fp:
         json.dump(entries, fp, indent=1)

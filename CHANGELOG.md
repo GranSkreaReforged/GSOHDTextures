@@ -5,6 +5,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-08
 ### Added
 - Runtime texture replacer plugin (BepInEx 5, net35):
   - Replacements are matched by `<name>__<width>x<height>` and loaded lazily from `textures/`: pre-compressed BC7/DXT `.dds` files are uploaded as-is, and hand-made `.png` files are compressed after loading.

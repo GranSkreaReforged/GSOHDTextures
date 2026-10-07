@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+artifacts/
+dist/
+.cache/
+
+# Machine-specific game path (written by build.ps1)
+GameDir.user.props
+
+# Texture pipeline working data. Everything in here is derived from proprietary game art - never commit
+work/
+
+# Python
+tools/textures/.venv/
+__pycache__/
+
+# IDEs
+.vs/
+.idea/
+*.user
+*.suo

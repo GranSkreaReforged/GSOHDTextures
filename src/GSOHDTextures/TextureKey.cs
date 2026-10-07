@@ -5,7 +5,8 @@ namespace GSOHDTextures
 {
     /// <summary>
     /// Identifies a game texture as "&lt;name&gt;__&lt;width&gt;x&lt;height&gt;", using the original size.
-    /// Only 31 of the game's 4083 textures share a key, and those are duplicates across asset files.
+    /// Keys shared by different images (25 of them, e.g. ChainmailArms, Material.001_Base_Color) or
+    /// differing only in case are marked by tools/textures/dump.py and never get a replacement.
     /// MUST stay identical to texture_key() in tools/textures/common.py.
     /// </summary>
     internal static class TextureKey

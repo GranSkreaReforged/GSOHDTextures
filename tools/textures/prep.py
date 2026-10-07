@@ -15,6 +15,8 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # run with -I, which drops the script dir
 from common import is_data_map, load_index, wrap_pad
 
+Image.MAX_IMAGE_PIXELS = None  # x4 output of a padded 2048 texture is 10240^2; these are our own files
+
 
 def padded(im, pad):
     w, h = im.size
@@ -23,6 +25,21 @@ def padded(im, pad):
         for dy in (-h, 0, h):
             out.paste(im, (pad + dx, pad + dy))
     return out
+
+
+def drop_truncated(done_dir, newest=8):
+    """An interrupted upscale can leave its last few outputs half-written, and resuming skips any
+    file that exists. Fully decode the newest outputs and delete broken ones so they are redone."""
+    if not os.path.isdir(done_dir):
+        return
+    paths = sorted((os.path.join(done_dir, f) for f in os.listdir(done_dir)), key=os.path.getmtime)
+    for path in paths[-newest:]:
+        try:
+            with Image.open(path) as im:
+                im.load()
+        except Exception as e:
+            print(f'Removing truncated {os.path.basename(path)} ({e})')
+            os.remove(path)
 
 
 def main():
@@ -42,6 +59,7 @@ def main():
         shutil.rmtree(stage)
     os.makedirs(stage)
     done_dir = os.path.join(args.work, 'upscaled')
+    drop_truncated(done_dir)
 
     staged = 0
     for e in load_index(args.work):

@@ -16,6 +16,7 @@ namespace GSOHDTextures
     {
         private struct Prop
         {
+            public string Name;
             public int Id;
             public bool Linear;
         }
@@ -62,8 +63,11 @@ namespace GSOHDTextures
         private bool scanPending = true;
         private float nextScan;
 
+        internal static TextureReplacer Instance { get; private set; }
+
         private void Start()
         {
+            Instance = this;
             props = ParseProperties();
             seenFile = Path.Combine(Paths.BepInExRootPath, "GSOHDTextures-seen.txt");
             if (Plugin.RecordSeenTextures.Value && File.Exists(seenFile))
@@ -91,10 +95,11 @@ namespace GSOHDTextures
                 scanPending = false;
                 nextScan = Time.unscaledTime + Mathf.Max(interval, 0.25f);
                 var before = store.LoadedCount;
+                var clock = System.Diagnostics.Stopwatch.StartNew();
                 ScanMaterials();
                 ScanTerrains();
                 if (store.LoadedCount != before)
-                    Plugin.Log.LogInfo($"Loaded {store.LoadedCount - before} textures ({store.LoadedCount}/{store.FileCount} in use).");
+                    Plugin.Log.LogInfo($"Loaded {store.LoadedCount - before} textures in {clock.ElapsedMilliseconds} ms ({store.LoadedCount}/{store.FileCount} in use).");
             }
         }
 
@@ -108,7 +113,8 @@ namespace GSOHDTextures
             foreach (var name in names)
             {
                 var linear = name.EndsWith("!");
-                result.Add(new Prop { Id = Shader.PropertyToID(linear ? name.Substring(0, name.Length - 1) : name), Linear = linear });
+                var bare = linear ? name.Substring(0, name.Length - 1) : name;
+                result.Add(new Prop { Name = bare, Id = Shader.PropertyToID(bare), Linear = linear });
             }
             return result.ToArray();
         }
@@ -183,6 +189,23 @@ namespace GSOHDTextures
             var key = TextureKey.Of(tex);
             if (seen.Add(key))
                 File.AppendAllText(seenFile, key + "\n");
+        }
+
+        /// <summary>One line per checked texture property of <paramref name="mat"/>: what it shows now, and the original key.</summary>
+        internal IEnumerable<string> Describe(Material mat)
+        {
+            foreach (var prop in props)
+            {
+                if (!mat.HasProperty(prop.Id)) continue;
+                var tex = mat.GetTexture(prop.Id) as Texture2D;
+                if (tex == null) continue;
+                if (!store.IsReplacement(tex))
+                {
+                    yield return $"{prop.Name} = {TextureKey.Of(tex)} (original{(store.HasFile(TextureKey.Of(tex)) ? ", has a file" : "")})";
+                    continue;
+                }
+                yield return $"{prop.Name} = HD {tex.width}x{tex.height} for {store.KeyOf(tex)}";
+            }
         }
 
         private void Restore()

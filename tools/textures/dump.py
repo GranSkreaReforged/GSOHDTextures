@@ -8,18 +8,37 @@ import os
 import sys
 
 import UnityPy
+from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # run with -I, which drops the script dir
 from common import texture_key
 
-# Baked lighting and font atlases must keep their exact texels.
-SKIP_PREFIXES = ('Lightmap-', 'ReflectionProbe-', 'Font Texture')
+# Baked lighting, font atlases and terrain blend weights (SplatAlpha) must keep their exact texels.
+SKIP_PREFIXES = ('Lightmap-', 'ReflectionProbe-', 'Font Texture', 'SplatAlpha')
 
 
 def asset_files(data):
     for f in sorted(os.listdir(data)):
         if f.endswith('.assets') or (f.startswith('level') and '.' not in f):
             yield f
+
+
+def decoded(t):
+    """The texture as it is saved to work/dump: RGB when the alpha is fully opaque."""
+    im = t.image
+    if im.mode == 'RGBA' and im.getchannel('A').getextrema() == (255, 255):
+        im = im.convert('RGB')
+    return im
+
+
+def same_as_dumped(t, png):
+    """Whether a texture that reuses a key has the same pixels as the one dumped for it."""
+    try:
+        im = decoded(t)
+    except Exception:
+        return False
+    with Image.open(png) as first:
+        return first.mode == im.mode and first.size == im.size and first.tobytes() == im.tobytes()
 
 
 def main():
@@ -52,14 +71,21 @@ def main():
                 continue
             key = texture_key(name, w, h)
             if key in this_run:
-                continue  # the same texture duplicated in another asset file
+                # Usually the same texture in another asset file, but 25 keys (ChainmailArms,
+                # Material.001_Base_Color, ...) belong to different images. The plugin only sees
+                # name and size, so those would show the wrong art: leave their originals alone.
+                entry = index[key]
+                png = os.path.join(dump_dir, key + '.png')
+                if 'skip' not in entry and os.path.exists(png) and not same_as_dumped(t, png):
+                    entry['skip'] = 'ambiguous-key'
+                continue
             this_run.add(key)
             entry = {'key': key, 'name': name, 'file': f, 'width': w, 'height': h,
                      'format': str(t.m_TextureFormat).split('.')[-1], 'mips': getattr(t, 'm_MipCount', 1)}
             index[key] = entry
 
             if name.startswith(SKIP_PREFIXES):
-                entry['skip'] = 'lighting-or-font'
+                entry['skip'] = 'lighting-font-or-splat'
                 continue
             if max(w, h) < args.min_size:
                 entry['skip'] = 'too-small'
@@ -69,12 +95,10 @@ def main():
             if os.path.exists(out):
                 continue
             try:
-                im = t.image
+                im = decoded(t)
             except Exception as e:  # unsupported/crunched formats
                 entry['skip'] = f'decode-failed: {e}'
                 continue
-            if im.mode == 'RGBA' and im.getchannel('A').getextrema() == (255, 255):
-                im = im.convert('RGB')
             im.save(out)
             written += 1
         print(f'{f}: {len(this_run)} textures so far', flush=True)

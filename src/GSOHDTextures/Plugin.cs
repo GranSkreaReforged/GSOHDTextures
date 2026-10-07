@@ -30,7 +30,7 @@ namespace GSOHDTextures
 
             Enabled = Config.Bind("General", "Enabled", true, "Replace game textures with the ones in TextureFolder.");
             var folder = Config.Bind("General", "TextureFolder", "textures", "Folder of replacement textures, relative to this plugin's folder (or absolute).");
-            CompressTextures = Config.Bind("General", "CompressTextures", true, "Compress loaded textures to DXT1/DXT5 on the GPU. Uses about a quarter of the VRAM but loads more slowly.");
+            CompressTextures = Config.Bind("General", "CompressTextures", true, "Compress hand-made .png replacements to DXT1/DXT5 after loading (the .dds files pack.ps1 builds are already compressed). Uses about a quarter of the VRAM but loads more slowly.");
             ScanInterval = Config.Bind("General", "ScanInterval", 2f, "Seconds between scans for newly loaded materials (NPCs, equipment, effects). 0 = scan only on scene load.");
             ExtraProperties = Config.Bind("Advanced", "ExtraTextureProperties", "", "Comma-separated shader texture properties to check besides the built-in list (e.g. _Ramp,_MaskTex). Suffix with ! for linear data such as normal maps.");
             ReloadKey = Config.Bind("Debug", "ReloadKey", new KeyboardShortcut(KeyCode.F9), "Reload the texture folder and re-apply everything (for iterating on textures in-game).");

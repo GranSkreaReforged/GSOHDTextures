@@ -69,7 +69,7 @@ try {
     Copy-Item (Join-Path $root 'README.md') (Join-Path $pluginDir 'README.md')
     Copy-Item $changelog (Join-Path $pluginDir 'CHANGELOG.md')
     Copy-Item (Join-Path $root 'LICENSE') (Join-Path $pluginDir 'LICENSE')
-    Set-Content -Path (Join-Path $pluginDir 'textures\PUT_TEXTURES_HERE.txt') -Value 'Replacement textures go in this folder as <name>__<width>x<height>.png. See README.md.'
+    Set-Content -Path (Join-Path $pluginDir 'textures\PUT_TEXTURES_HERE.txt') -Value 'Replacement textures go in this folder as <name>__<width>x<height>.dds (built by tools\textures\pack.ps1) or .png. See README.md.'
 
     $full = Join-Path $staging 'full'
     Expand-Archive -Path (Get-BepInExZip) -DestinationPath $full

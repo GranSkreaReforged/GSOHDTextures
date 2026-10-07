@@ -1,4 +1,5 @@
 """Build the final texture pack in <work>/pack from upscaled output, overrides and plain resizes.
+Each texture is written as <key>.dds (BC7 with mipmaps, see dds.py) so the plugin loads it without stalling.
 
 Source per texture, first match wins:
   1. <work>/overrides/<key>.png   hand-made or hand-fixed, used at its own size
@@ -6,16 +7,20 @@ Source per texture, first match wins:
   3. normal and other data maps, and textures bigger than prep.py's --max-input: Lanczos resize of the original
 Anything else (not upscaled yet) is left out, so the game keeps its original.
 
-usage: pack.py <work dir> [--scale 2] [--max-size 4096] [--only-list FILE] [--max-input 2048]
+usage: pack.py <work dir> [--scale 2] [--max-size 4096] [--only-list FILE] [--max-input 2048] [--jobs 6]
 """
 import argparse
 import os
 import sys
+from concurrent.futures import ProcessPoolExecutor
 
 from PIL import Image, ImageChops, ImageFilter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # run with -I, which drops the script dir
 from common import is_data_map, load_index, wrap_pad
+from dds import save_bc7
+
+Image.MAX_IMAGE_PIXELS = None  # x4 output of a padded 2048 texture is 10240^2; these are our own files
 
 
 def target_size(w, h, scale, max_size):
@@ -73,12 +78,23 @@ def build(e, work, scale, max_size, max_input):
             up.load()
         pad = wrap_pad(w, h)
         f = up.width / (w + 2 * pad)
-        rgb = up.crop((round(pad * f), round(pad * f), round((pad + w) * f), round((pad + h) * f)))
-        return with_alpha(tone_match(rgb.resize(size, Image.LANCZOS), original), original, size), 'upscaled'
+        # Crop the padding off and resize in one step: a cropped copy of a 10240^2 output costs ~300 MB.
+        rgb = up.resize(size, Image.LANCZOS, box=(pad * f, pad * f, (pad + w) * f, (pad + h) * f))
+        del up
+        return with_alpha(tone_match(rgb, original), original, size), 'upscaled'
 
     if is_data_map(e) or max(w, h) > max_input:
         return original.resize(size, Image.LANCZOS), 'resized'
     return None, 'pending'
+
+
+def pack_one(e, out, args):
+    """Build and write one texture; runs in a worker process."""
+    im, how = build(e, args.work, args.scale, args.max_size, args.max_input)
+    if im is not None:
+        save_bc7(im, out + '.part')
+        os.replace(out + '.part', out)  # a killed run never leaves a truncated file that looks up to date
+    return how
 
 
 def main():
@@ -88,6 +104,8 @@ def main():
     ap.add_argument('--max-size', type=int, default=4096)
     ap.add_argument('--max-input', type=int, default=2048)
     ap.add_argument('--only-list', help='file of texture keys (one per line), e.g. BepInEx/GSOHDTextures-seen.txt')
+    # Each worker can hold a 10240^2 AI output (~300 MB) plus copies, so this is bounded by RAM, not cores.
+    ap.add_argument('--jobs', type=int, default=6)
     args = ap.parse_args()
 
     only = None
@@ -97,31 +115,35 @@ def main():
 
     out_dir = os.path.join(args.work, 'pack')
     os.makedirs(out_dir, exist_ok=True)
-    wanted = set()
     counts = {}
+    jobs = {}
+    wanted = set()
+    with ProcessPoolExecutor(args.jobs) as pool:
+        for e in load_index(args.work):
+            key = e['key']
+            if 'skip' in e or (only is not None and key not in only):
+                continue
+            out = os.path.join(out_dir, key + '.dds')
+            sources = [os.path.join(args.work, d, key + '.png') for d in ('overrides', 'upscaled', 'dump')]
+            newest = max((os.path.getmtime(s) for s in sources if os.path.exists(s)), default=0)
+            if os.path.exists(out) and os.path.getmtime(out) >= newest:
+                counts['unchanged'] = counts.get('unchanged', 0) + 1
+                wanted.add(key + '.dds')
+                continue
+            jobs[key] = pool.submit(pack_one, e, out, args)
 
-    for e in load_index(args.work):
-        key = e['key']
-        if 'skip' in e or (only is not None and key not in only):
-            continue
-        out = os.path.join(out_dir, key + '.png')
-        sources = [os.path.join(args.work, d, key + '.png') for d in ('overrides', 'upscaled', 'dump')]
-        newest = max((os.path.getmtime(s) for s in sources if os.path.exists(s)), default=0)
-        if os.path.exists(out) and os.path.getmtime(out) >= newest:
-            wanted.add(key + '.png')
-            counts['unchanged'] = counts.get('unchanged', 0) + 1
-            continue
+        for i, (key, job) in enumerate(jobs.items(), 1):
+            how = job.result()
+            counts[how] = counts.get(how, 0) + 1
+            if how in ('override', 'upscaled', 'resized'):
+                wanted.add(key + '.dds')
+            if i % 250 == 0:
+                print(f'  {i}/{len(jobs)}', flush=True)
 
-        im, how = build(e, args.work, args.scale, args.max_size, args.max_input)
-        counts[how] = counts.get(how, 0) + 1
-        if im is None:
-            continue
-        im.save(out, optimize=False, compress_level=6)
-        wanted.add(key + '.png')
-
+    # Keep exactly what the current rules produce; this also clears PNGs from older versions of the pack.
     removed = 0
     for f in os.listdir(out_dir):
-        if f.endswith('.png') and f not in wanted:
+        if f.endswith(('.png', '.dds', '.part')) and f not in wanted:
             os.remove(os.path.join(out_dir, f))
             removed += 1
 

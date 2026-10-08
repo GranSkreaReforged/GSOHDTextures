@@ -12,6 +12,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ### Changed
 - Builds no longer touch the game. `build.ps1` puts the plugin in `artifacts\build\<Configuration>\`, laid out like the game folder, with an `INSTALL.txt` saying where it goes; `-Deploy` (replacing the old default and `-NoDeploy`) copies it into the game. BepInEx's DLLs for compiling come from the pinned BepInEx zip, so building doesn't need BepInEx installed in the game. The README explains installing the plugin and a texture pack by hand.
+- `docs/INSTALL.md`: installation guides from a release and from a build (with updating, uninstalling and troubleshooting), also shipped in the release zips.
 
 ## [0.1.0] - 2026-10-08
 ### Added

@@ -4,6 +4,8 @@ A BepInEx plugin that swaps **Gran Skrea Online**'s textures for higher-resoluti
 
 It works with or without GSO Offline Server.
 
+**Installing:** see [docs/INSTALL.md](docs/INSTALL.md), with step-by-step guides for installing from a release zip and from your own build, plus building the texture pack.
+
 ## About this project
 
 This is a non-commercial passion project for a game that is no longer sold. It is not affiliated with or endorsed by the original developers or publisher. "Gran Skrea Online" and all game assets belong to their respective owners.

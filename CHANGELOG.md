@@ -5,6 +5,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-08
 ### Added
 - Interface scaling for high-resolution screens. The classic HUD, chat, windows, login and character screens grow with the screen height (1080p = 100%), with your own preference on top: an **Interface scale** slider in Main menu → Video options, Ctrl + = / - / 0, or `UI.Scale` in the config. Text stays sharp, and the minimap and other canvas UI follow the same setting. Mouse hover, clicks, dragging and nameplates stay aligned.
 - Interface icons and images are drawn from the texture pack, so the larger interface stays sharp.

@@ -39,8 +39,10 @@ Requirements: Windows, Python 3.10+, a Vulkan-capable GPU, and the plugin instal
 ```powershell
 .\tools\textures\dump.ps1                 # 1. export ~3,800 textures to work\dump (a few minutes)
 .\tools\textures\upscale.ps1              # 2. AI upscale into work\upscaled (hours for everything; resumable)
-.\tools\textures\pack.ps1 -Deploy         # 3. build work\pack and copy it into the game
+.\tools\textures\pack.ps1                 # 3. build the finished pack in work\pack (add -Deploy to copy it into the game)
 ```
+
+`work\pack\` holds the finished pack: one `<name>__<width>x<height>.dds` per texture. To install it by hand, copy those files into `<game>\BepInEx\plugins\GSOHDTextures\textures\` (create the folder if needed). `-Deploy` does the same and also removes files there that are no longer in the pack. The pack is derived from the game's art, so build it from your own copy and keep it to yourself.
 
 Working on a subset first is much faster:
 
@@ -55,12 +57,30 @@ To hand-fix a texture, put your version in `work\overrides\<key>.png` (any size,
 
 Useful options: `upscale.ps1 -Model realesrgan-x4plus-anime` (for flat, stylised art), `-Tile 256` (low VRAM), `-Gpu 1`; `pack.ps1 -Scale 4`, `-MaxSize 2048` (less VRAM and disk), `-Jobs 6` (parallel BC7 encoders; each can need over 1 GB of RAM).
 
-## Installing the plugin
+## Building and installing the plugin
+
+You need your own copy of Gran Skrea Online. The build reads the game's DLLs to compile against; it never copies them into the output and never writes to the game.
 
 ```powershell
-.\build.ps1                    # Debug build, deployed to <game>\BepInEx\plugins\GSOHDTextures
-.\build.ps1 -InstallBepInEx    # first time on a machine without BepInEx
+.\build.ps1                          # Debug build into artifacts\build\Debug; the game is untouched
+.\build.ps1 -Deploy                  # ...and copy it into the game (close the game first)
+.\build.ps1 -InstallBepInEx -Deploy  # first time, as a convenience: also put BepInEx into the game
+.\build.ps1 -Configuration Release
 ```
+
+Every build lands in `artifacts\build\<Configuration>\`, laid out exactly like the game folder, with an `INSTALL.txt`:
+
+```
+artifacts\build\Debug\
+  INSTALL.txt
+  BepInEx\plugins\GSOHDTextures\GSOHDTextures.dll
+```
+
+Review it there, then install it either way:
+- **By hand:** install [BepInEx 5.4.23.5 (x64)](https://github.com/BepInEx/BepInEx/releases) into the game folder (the one with `GSO.exe`), then copy this `BepInEx` folder into it, merging. Put a texture pack in `<game>\BepInEx\plugins\GSOHDTextures\textures\` (see above). Interface scaling works without a pack.
+- **With the scripts:** `build.ps1 -Deploy` copies the plugin, `-InstallBepInEx` installs BepInEx, and `pack.ps1 -Deploy` copies the pack.
+
+BepInEx's DLLs for compiling come from the same pinned, hash-checked BepInEx zip, unpacked into `.cache\`, so building doesn't need BepInEx in the game. Release zips (`release.ps1`) use the same layout.
 
 Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 

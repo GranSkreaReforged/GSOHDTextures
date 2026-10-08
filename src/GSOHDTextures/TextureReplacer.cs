@@ -54,7 +54,6 @@ namespace GSOHDTextures
         private readonly TextureStore store = new TextureStore();
         private readonly List<Swap> swaps = new List<Swap>();
         private readonly Dictionary<TerrainData, SplatPrototype[]> terrainSplats = new Dictionary<TerrainData, SplatPrototype[]>();
-        private readonly Dictionary<TerrainData, DetailPrototype[]> terrainDetails = new Dictionary<TerrainData, DetailPrototype[]>();
         private readonly HashSet<string> seen = new HashSet<string>();
         // HasProperty depends only on the shader, so each shader is checked against the list once.
         private readonly Dictionary<Shader, Prop[]> shaderProps = new Dictionary<Shader, Prop[]>();
@@ -158,19 +157,8 @@ namespace GSOHDTextures
                     if (!terrainSplats.ContainsKey(data)) terrainSplats[data] = data.splatPrototypes;
                     data.splatPrototypes = splats;
                 }
-
-                var details = data.detailPrototypes;
-                changed = false;
-                foreach (var dp in details)
-                {
-                    var tex = Replace(dp.prototypeTexture, false, out _);
-                    if (tex != null) { dp.prototypeTexture = tex; changed = true; }
-                }
-                if (changed)
-                {
-                    if (!terrainDetails.ContainsKey(data)) terrainDetails[data] = data.detailPrototypes;
-                    data.detailPrototypes = details;
-                }
+                // Grass (detail prototype) textures are left alone: Unity packs them into an atlas on the CPU,
+                // which needs readable, uncompressed pixels, and our BC7 uploads turn the grass into coloured noise.
             }
         }
 
@@ -219,9 +207,6 @@ namespace GSOHDTextures
             foreach (var kv in terrainSplats)
                 if (kv.Key != null) kv.Key.splatPrototypes = kv.Value;
             terrainSplats.Clear();
-            foreach (var kv in terrainDetails)
-                if (kv.Key != null) kv.Key.detailPrototypes = kv.Value;
-            terrainDetails.Clear();
         }
     }
 }

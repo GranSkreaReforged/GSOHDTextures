@@ -26,7 +26,7 @@ game assets ──dump.ps1──▶ work/dump/<key>.png ──upscale.ps1──�
 The classic interface (HUD, hotbar, chat, every window, the login and character screens) is drawn at 1:1 pixels, so it gets tiny on 1440p, ultrawide and 4K screens. The plugin scales it:
 
 - **Automatic:** the interface looks as it was designed on a 1080p screen: 133% at 1440p, 200% at 4K.
-- **Your preference on top:** **Ctrl + =** and **Ctrl + -** change it in 5% steps, **Ctrl + 0** resets it. The new size shows briefly on screen and is saved to `UI.Scale`.
+- **Your preference on top:** in-game under **Main menu → Video options → Interface scale** (50% to 200%, applied when you let go of the slider), or with **Ctrl + =** and **Ctrl + -** in 5% steps and **Ctrl + 0** to reset. The new size shows briefly on screen and is saved to `UI.Scale`.
 - The newer canvas parts (minimap, zone name) follow the same preference.
 - Icons and other interface images are drawn from the texture pack when it has them, so they stay sharp. Text is re-rendered at the new size, not magnified.
 
@@ -76,7 +76,7 @@ Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 | `Debug.RecordSeenTextures` | false | writes `BepInEx/GSOHDTextures-seen.txt` |
 | `UI.Enabled` | true | scale the interface (restart to switch completely) |
 | `UI.AutoScale` | true | grow with the screen height (1080 px = 100%) |
-| `UI.Scale` | 1 | your preference on top, 0.5 to 3; also Ctrl + = / - / 0 in-game |
+| `UI.Scale` | 1 | your preference on top, 0.5 to 3; also Video options → Interface scale, or Ctrl + = / - / 0 |
 | `UI.HdTextures` | true | draw interface images from the texture pack |
 | `UI.ScaleUpKey` / `ScaleDownKey` / `ScaleResetKey` | Ctrl + = / - / 0 | |
 

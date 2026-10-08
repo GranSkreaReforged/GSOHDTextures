@@ -43,11 +43,15 @@ namespace GSOHDTextures
             Plugin.Log.LogInfo($"[dev] UI.Scale {Plugin.UiUserScale.Value} -> factor {UiScale.Factor:0.###}");
         }
 
-        // openwindow <type>: open a classic window (2 inventory, 3 skills, 4 item info, ...; see Script_WindowController).
+        // openwindow <type> [tab] [scrollY]: open a classic window (2 inventory, 3 skills, 18 main menu; see
+        // Script_WindowController). For the main menu, tab 1 is Video options (with Interface scale).
         private static void OpenWindow(string[] args)
         {
-            Script_WindowController.instance.OpenWindowType(int.Parse(args[1]));
-            Plugin.Log.LogInfo($"[dev] opened window type {args[1]}");
+            var windows = Script_WindowController.instance;
+            windows.OpenWindowType(int.Parse(args[1]));
+            if (args.Length > 2 && args[1] == "18") windows.window_MainMenu.tab = int.Parse(args[2]);
+            if (args.Length > 3 && args[1] == "18") windows.window_MainMenu.scrollPos = new Vector2(0f, float.Parse(args[3]));
+            Plugin.Log.LogInfo($"[dev] opened window type {args[1]}{(args.Length > 2 ? " tab " + args[2] : "")}");
         }
 
         // hdui: the screen, the game's UI options, and every root canvas with how it scales.

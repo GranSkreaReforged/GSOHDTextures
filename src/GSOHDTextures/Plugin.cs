@@ -68,6 +68,7 @@ namespace GSOHDTextures
             if (UiEnabled.Value)
             {
                 GSOHDTextures.UiScale.Patch(harmony);
+                UiSettings.Patch(harmony);
                 host.AddComponent<UiController>();
             }
 

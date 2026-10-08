@@ -33,6 +33,12 @@ namespace GSOHDTextures
                 if (Plugin.UiScaleUpKey.Value.IsDown()) SetUserScale(Plugin.UiUserScale.Value + Step);
                 if (Plugin.UiScaleDownKey.Value.IsDown()) SetUserScale(Plugin.UiUserScale.Value - Step);
                 if (Plugin.UiScaleResetKey.Value.IsDown()) SetUserScale(1f);
+                // The settings slider (UiSettings) applies its value once the mouse is released.
+                if (UiSettings.Pending.HasValue && !Input.GetMouseButton(0))
+                {
+                    SetUserScale(UiSettings.Pending.Value);
+                    UiSettings.Pending = null;
+                }
             }
 
             // New canvases appear with scenes and windows; changed scales apply to all of them at once.

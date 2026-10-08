@@ -52,8 +52,14 @@ namespace GSOHDTextures
                 Factor = 1f;
                 return;
             }
+            Factor = FactorFor(Plugin.UiUserScale.Value);
+        }
+
+        /// <summary>The factor a given user scale gives on this screen.</summary>
+        internal static float FactorFor(float userScale)
+        {
             var auto = Plugin.UiAutoScale.Value ? Screen.height / DesignHeight : 1f;
-            Factor = Mathf.Clamp(auto * Plugin.UiUserScale.Value, 0.5f, 4f);
+            return Mathf.Clamp(auto * userScale, 0.5f, 4f);
         }
 
         // Scaled only while the game's GUI is being laid out or drawn.

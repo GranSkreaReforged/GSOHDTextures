@@ -17,6 +17,28 @@ namespace GSOHDTextures
             FrameProbe.Run(args.Length > 1 ? float.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture) : 10f);
         }
 
+        // hdtex on|off: shows the HD textures or the originals, in the same session (for comparison screenshots).
+        private static void HdTex(string[] args)
+        {
+            TextureReplacer.Instance?.SetPaused(args.Length > 1 && args[1] == "off");
+        }
+
+        // hdterrain: each active terrain's splat layers (texture and normal map) with their keys and what is shown now.
+        private static void HdTerrain(string[] args)
+        {
+            foreach (var t in Terrain.activeTerrains)
+            {
+                var mat = t.materialTemplate;
+                Plugin.Log.LogInfo($"[dev] terrain '{t.name}' material={(mat != null ? mat.name + " (" + mat.shader.name + ")" : t.materialType.ToString())}");
+                int i = 0;
+                foreach (var sp in t.terrainData.splatPrototypes)
+                {
+                    string Show(Texture2D tex) => tex == null ? "none" : $"{tex.name} {tex.width}x{tex.height} {tex.format}";
+                    Plugin.Log.LogInfo($"[dev]   layer {i++}: tex={Show(sp.texture)} normal={Show(sp.normalMap)} tile={sp.tileSize} metallic={sp.metallic} smooth={sp.smoothness}");
+                }
+            }
+        }
+
         // gfx on|off: switches enhanced lighting, like the toggle key.
         private static void Gfx(string[] args)
         {

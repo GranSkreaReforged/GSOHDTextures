@@ -88,8 +88,20 @@ namespace GSOHDTextures
             SceneManager.sceneLoaded += (scene, mode) => scanPending = true;
         }
 
+        private bool paused;
+
+        /// <summary>Shows the original textures (paused) or the HD ones again, for side-by-side comparisons.</summary>
+        internal void SetPaused(bool value)
+        {
+            paused = value;
+            if (paused) Restore();
+            else scanPending = true;
+            Plugin.Log.LogInfo($"HD textures {(paused ? "paused (originals shown)" : "back on")}.");
+        }
+
         private void Update()
         {
+            if (paused) return;
             if (Plugin.ReloadKey.Value.IsDown())
             {
                 Restore();
@@ -207,7 +219,9 @@ namespace GSOHDTextures
                 var changed = false;
                 foreach (var sp in splats)
                 {
-                    var tex = Replace(sp.texture, false, async, out _, out _);
+                    var tex = Replace(sp.texture, false, async, out var original, out _);
+                    // Keep "no alpha" originals alpha-free, or the terrain reads the alpha as smoothness (see OpaqueCopy).
+                    if (tex != null && TextureStore.HasNoAlpha(original.format)) tex = store.OpaqueCopy(tex);
                     if (tex != null) { sp.texture = tex; changed = true; }
                     var normal = Replace(sp.normalMap, true, async, out _, out _);
                     if (normal != null) { sp.normalMap = normal; changed = true; }

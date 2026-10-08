@@ -6,6 +6,18 @@ It works with or without GSO Offline Server.
 
 **Installing:** see [docs/INSTALL.md](docs/INSTALL.md), with step-by-step guides for installing from a release zip and from your own build, plus building the texture pack.
 
+## Before and after
+
+Each row is the same moment from the same spot, switched in-game: the original game, the HD texture pack, and the HD texture pack with [enhanced lighting](#enhanced-lighting) (the default). Click an image for full size. The lighting is the most visible change; the HD textures mostly show up close and on large surfaces such as walls, rocks and the ground.
+
+| Original | HD textures | HD textures + enhanced lighting |
+|---|---|---|
+| ![West Athagos, original](docs/images/town-original.jpg) | ![West Athagos, HD textures](docs/images/town-hd-textures.jpg) | ![West Athagos, HD textures and enhanced lighting](docs/images/town-hd-lighting.jpg) |
+| ![Monastery, original](docs/images/monastery-original.jpg) | ![Monastery, HD textures](docs/images/monastery-hd-textures.jpg) | ![Monastery, HD textures and enhanced lighting](docs/images/monastery-hd-lighting.jpg) |
+| ![Fields near the ruins, original](docs/images/field-original.jpg) | ![Fields near the ruins, HD textures](docs/images/field-hd-textures.jpg) | ![Fields near the ruins, HD textures and enhanced lighting](docs/images/field-hd-lighting.jpg) |
+
+Screenshots taken on a 3440-pixel-wide screen and scaled down (interface cropped off), with a texture pack built by `tools/textures/` from the game's own art. The pack itself is not distributed.
+
 ## About this project
 
 This is a non-commercial passion project for a game that is no longer sold. It is not affiliated with or endorsed by the original developers or publisher. "Gran Skrea Online" and all game assets belong to their respective owners.

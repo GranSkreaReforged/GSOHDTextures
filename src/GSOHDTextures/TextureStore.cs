@@ -56,6 +56,8 @@ namespace GSOHDTextures
             byOriginal.Clear();
             replacementKeys.Clear();
             byKey.Clear();
+            foreach (var t in opaqueCopies.Values) if (t != null) UnityEngine.Object.Destroy(t);
+            opaqueCopies.Clear();
             files.Clear();
             lock (gate)
             {
@@ -97,6 +99,47 @@ namespace GSOHDTextures
         public string KeyOf(Texture tex) => replacementKeys.TryGetValue(tex.GetInstanceID(), out var key) ? key : null;
 
         public bool HasFile(string key) => files.ContainsKey(key);
+
+        private readonly Dictionary<string, Texture2D> opaqueCopies = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Formats with no alpha channel. Unity's terrain uses a layer's own smoothness only for these.</summary>
+        public static bool HasNoAlpha(TextureFormat f) =>
+            f == TextureFormat.DXT1 || f == TextureFormat.DXT1Crunched || f == TextureFormat.RGB24 || f == TextureFormat.RGB565 ||
+            f == TextureFormat.R8 || f == TextureFormat.R16 || f == TextureFormat.BC4 || f == TextureFormat.BC5 || f == TextureFormat.BC6H ||
+            f == TextureFormat.ETC_RGB4;
+
+        /// <summary>
+        /// A DXT1 copy (no alpha channel) of a BC7 replacement. Terrain layers take their smoothness from the colour
+        /// texture's alpha whenever its format has one, so a BC7 version of an opaque DXT1 original turns the ground
+        /// glossy (metallic layers then mirror the blue sky). Made once per key on the GPU, at scene load.
+        /// </summary>
+        public Texture2D OpaqueCopy(Texture2D hd)
+        {
+            var key = KeyOf(hd);
+            if (key == null || HasNoAlpha(hd.format)) return hd;
+            if (opaqueCopies.TryGetValue(key, out var copy) && copy != null) return copy;
+
+            int w = hd.width, h = hd.height;
+            var rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32);
+            var previous = RenderTexture.active;
+            UnityEngine.Graphics.Blit(hd, rt);
+            RenderTexture.active = rt;
+            copy = new Texture2D(w, h, TextureFormat.RGB24, hd.mipmapCount > 1, false);
+            copy.ReadPixels(new Rect(0, 0, w, h), 0, 0, false);
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(rt);
+            copy.Apply(true, false);
+            copy.Compress(false);
+            copy.name = hd.name;
+            copy.wrapMode = hd.wrapMode;
+            copy.filterMode = hd.filterMode;
+            copy.anisoLevel = hd.anisoLevel;
+            copy.mipMapBias = hd.mipMapBias;
+            copy.Apply(false, true);
+            replacementKeys[copy.GetInstanceID()] = key;
+            opaqueCopies[key] = copy;
+            return copy;
+        }
 
         /// <summary>Replacement for <paramref name="original"/>, or null, loading it now if needed. <paramref name="linear"/> is for normal maps and other non-colour data.</summary>
         public Texture2D Get(Texture2D original, bool linear)

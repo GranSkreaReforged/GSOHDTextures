@@ -26,6 +26,7 @@ namespace GSOHDTextures
             public Material Material;
             public int Prop;
             public Texture Original;
+            public bool Linear;
         }
 
         // Trailing ! marks linear (non-colour) data. From tools/textures/props.py over the game's materials;
@@ -62,6 +63,15 @@ namespace GSOHDTextures
         private bool scanPending = true;
         private float nextScan;
 
+        // Between scene loads, materials are checked a slice at a time (SliceBudgetMs per frame) and new
+        // textures stream in from a background thread, so nothing during play costs a whole frame.
+        private const double SliceBudgetMs = 1.0;
+        private Material[] cycle;
+        private int cursor;
+        private int streamed;
+        // Material slots whose replacement is still being read; filled in as soon as it's uploaded.
+        private readonly List<Swap> waiting = new List<Swap>();
+
         internal static TextureReplacer Instance { get; private set; }
 
         private void Start()
@@ -88,17 +98,62 @@ namespace GSOHDTextures
                 scanPending = true;
             }
 
+            var clock = System.Diagnostics.Stopwatch.StartNew();
             var interval = Plugin.ScanInterval.Value;
-            if (scanPending || (interval > 0 && Time.unscaledTime >= nextScan))
+            if (scanPending)
             {
+                // Scene load: the loading screen is up, so do everything now and arrive with the scene sharp.
                 scanPending = false;
+                cycle = null;
                 nextScan = Time.unscaledTime + Mathf.Max(interval, 0.25f);
                 var before = store.LoadedCount;
-                var clock = System.Diagnostics.Stopwatch.StartNew();
-                ScanMaterials();
-                ScanTerrains();
+                var all = Resources.FindObjectsOfTypeAll<Material>();
+                for (int i = 0; i < all.Length; i++) ScanMaterial(all[i], false);
+                ScanTerrains(false);
                 if (store.LoadedCount != before)
                     Plugin.Log.LogInfo($"Loaded {store.LoadedCount - before} textures in {clock.ElapsedMilliseconds} ms ({store.LoadedCount}/{store.FileCount} in use).");
+            }
+            else
+            {
+                if (store.Pump()) { streamed++; FillWaiting(); }
+                if (cycle == null && interval > 0 && Time.unscaledTime >= nextScan)
+                {
+                    cycle = Resources.FindObjectsOfTypeAll<Material>();
+                    cursor = 0;
+                }
+                if (cycle != null)
+                {
+                    while (cursor < cycle.Length && clock.Elapsed.TotalMilliseconds < SliceBudgetMs)
+                        ScanMaterial(cycle[cursor++], true);
+                    if (cursor >= cycle.Length)
+                    {
+                        ScanTerrains(true);
+                        cycle = null;
+                        nextScan = Time.unscaledTime + Mathf.Max(interval, 0.25f);
+                    }
+                }
+                if (streamed > 0 && store.PendingCount == 0)
+                {
+                    Plugin.Log.LogInfo($"Streamed in {streamed} textures ({store.LoadedCount}/{store.FileCount} in use).");
+                    streamed = 0;
+                }
+            }
+            FrameProbe.PluginMsThisFrame += (float)clock.Elapsed.TotalMilliseconds;
+        }
+
+        private void FillWaiting()
+        {
+            for (int i = waiting.Count - 1; i >= 0; i--)
+            {
+                var w = waiting[i];
+                var original = (Texture2D)w.Original;
+                if (w.Material == null || original == null) { waiting.RemoveAt(i); continue; }
+                if (!store.TryGetAsync(original, w.Linear, out var replacement)) continue;
+                waiting.RemoveAt(i);
+                // Only if the game hasn't put something else there in the meantime.
+                if (replacement == null || w.Material.GetTexture(w.Prop) != original) continue;
+                w.Material.SetTexture(w.Prop, replacement);
+                swaps.Add(new Swap { Material = w.Material, Prop = w.Prop, Original = original });
             }
         }
 
@@ -118,25 +173,30 @@ namespace GSOHDTextures
             return result.ToArray();
         }
 
-        private void ScanMaterials()
+        private void ScanMaterial(Material mat, bool async)
         {
-            foreach (var mat in Resources.FindObjectsOfTypeAll<Material>())
+            if (mat == null) return;   // destroyed since the cycle started
+            var shader = mat.shader;
+            if (shader == null) return;
+            if (!shaderProps.TryGetValue(shader, out var has))
+                shaderProps[shader] = has = props.Where(p => mat.HasProperty(p.Id)).ToArray();
+            foreach (var prop in has)
             {
-                var shader = mat.shader;
-                if (shader == null) continue;
-                if (!shaderProps.TryGetValue(shader, out var has))
-                    shaderProps[shader] = has = props.Where(p => mat.HasProperty(p.Id)).ToArray();
-                foreach (var prop in has)
+                var replacement = Replace(mat.GetTexture(prop.Id), prop.Linear, async, out var original, out bool pending);
+                if (pending)
                 {
-                    var replacement = Replace(mat.GetTexture(prop.Id), prop.Linear, out var original);
-                    if (replacement == null) continue;
-                    mat.SetTexture(prop.Id, replacement);
-                    swaps.Add(new Swap { Material = mat, Prop = prop.Id, Original = original });
+                    if (!waiting.Exists(w => w.Material == mat && w.Prop == prop.Id))
+                        waiting.Add(new Swap { Material = mat, Prop = prop.Id, Original = original, Linear = prop.Linear });
+                    continue;
                 }
+                if (replacement == null) continue;
+                mat.SetTexture(prop.Id, replacement);
+                swaps.Add(new Swap { Material = mat, Prop = prop.Id, Original = original });
             }
         }
 
-        private void ScanTerrains()
+        // Terrain textures that are still streaming are picked up by the next cycle.
+        private void ScanTerrains(bool async)
         {
             foreach (var terrain in Terrain.activeTerrains)
             {
@@ -147,9 +207,9 @@ namespace GSOHDTextures
                 var changed = false;
                 foreach (var sp in splats)
                 {
-                    var tex = Replace(sp.texture, false, out _);
+                    var tex = Replace(sp.texture, false, async, out _, out _);
                     if (tex != null) { sp.texture = tex; changed = true; }
-                    var normal = Replace(sp.normalMap, true, out _);
+                    var normal = Replace(sp.normalMap, true, async, out _, out _);
                     if (normal != null) { sp.normalMap = normal; changed = true; }
                 }
                 if (changed)
@@ -163,15 +223,19 @@ namespace GSOHDTextures
         }
 
         /// <summary>HD version of an interface image drawn with GUI.DrawTexture, or null. Called every frame, so it only does lookups after the first time.</summary>
-        internal Texture2D UiReplacement(Texture tex) => Replace(tex, false, out _);
+        internal Texture2D UiReplacement(Texture tex) => Replace(tex, false, false, out _, out _);
 
-        // The replacement for a texture the game is using, or null if there is none or it's already replaced.
-        private Texture2D Replace(Texture tex, bool linear, out Texture2D original)
+        // The replacement for a texture the game is using, or null if there is none, it's already replaced,
+        // or (async) it's still being read, which sets `pending`.
+        private Texture2D Replace(Texture tex, bool linear, bool async, out Texture2D original, out bool pending)
         {
+            pending = false;
             original = tex as Texture2D;
             if (original == null || store.IsReplacement(original)) return null;
             Record(original);
-            return store.Get(original, linear);
+            if (!async) return store.Get(original, linear);
+            pending = !store.TryGetAsync(original, linear, out var result);
+            return result;
         }
 
         private void Record(Texture2D tex)
@@ -201,6 +265,8 @@ namespace GSOHDTextures
 
         private void Restore()
         {
+            waiting.Clear();
+            cycle = null;
             foreach (var s in swaps)
                 if (s.Material != null) s.Material.SetTexture(s.Prop, s.Original);
             swaps.Clear();

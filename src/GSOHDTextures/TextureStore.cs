@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using UnityEngine;
 
 namespace GSOHDTextures
@@ -11,17 +12,42 @@ namespace GSOHDTextures
     /// the game uses the original. Each original is loaded at most once.
     /// .dds files (what pack.ps1 builds: BC7/DXT1/DXT5 with mipmaps) are uploaded as-is, which is fast.
     /// .png files (hand-made) are decoded and compressed here, which stalls the game for large ones.
+    ///
+    /// Two ways in: <see cref="Get"/> loads on the spot (scene loads, behind the loading screen), and
+    /// <see cref="TryGetAsync"/> reads the file on a background thread and uploads it in a later frame
+    /// (<see cref="Pump"/>), so textures that appear during play don't stall a frame. Files are read into
+    /// reused buffers: allocating a fresh 20 MB array per texture made Mono's garbage collector pause the game.
     /// </summary>
     internal class TextureStore
     {
+        private class Pending
+        {
+            public string Key, Path;
+            public bool Linear;
+            public Texture2D Template;   // any original with this key (for size, mipmaps and sampler settings)
+            public readonly List<int> Originals = new List<int>();
+        }
+
         private readonly Dictionary<string, string> files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         // Original texture instance id -> replacement, or null when there is none (cached misses).
         private readonly Dictionary<int, Texture2D> byOriginal = new Dictionary<int, Texture2D>();
-        // Replacement instance id -> the key it was loaded for.
+        // Replacement instance id -> the key it was loaded for, and back.
         private readonly Dictionary<int, string> replacementKeys = new Dictionary<int, string>();
+        private readonly Dictionary<string, Texture2D> byKey = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+
+        private readonly Dictionary<string, Pending> pending = new Dictionary<string, Pending>(StringComparer.OrdinalIgnoreCase);
+        private readonly Queue<Pending> queue = new Queue<Pending>();
+        private byte[] syncBuffer = new byte[0], asyncBuffer = new byte[0];
+        // Background read state, shared with the reader thread under `gate`.
+        private readonly object gate = new object();
+        private Pending reading;
+        private int readLength = -1;    // -1 while reading, else bytes read into asyncBuffer
+        private string readError;
+        private int generation;         // bumped by Reload so a stale read is dropped
 
         public int FileCount => files.Count;
         public int LoadedCount => replacementKeys.Count;
+        public int PendingCount => pending.Count;
 
         public void Reload(string dir)
         {
@@ -29,7 +55,15 @@ namespace GSOHDTextures
                 if (tex != null) UnityEngine.Object.Destroy(tex);
             byOriginal.Clear();
             replacementKeys.Clear();
+            byKey.Clear();
             files.Clear();
+            lock (gate)
+            {
+                generation++;
+                pending.Clear();
+                queue.Clear();
+                reading = null;
+            }
 
             if (!Directory.Exists(dir))
             {
@@ -64,35 +98,161 @@ namespace GSOHDTextures
 
         public bool HasFile(string key) => files.ContainsKey(key);
 
-        /// <summary>Replacement for <paramref name="original"/>, or null. <paramref name="linear"/> is for normal maps and other non-colour data.</summary>
+        /// <summary>Replacement for <paramref name="original"/>, or null, loading it now if needed. <paramref name="linear"/> is for normal maps and other non-colour data.</summary>
         public Texture2D Get(Texture2D original, bool linear)
         {
             var id = original.GetInstanceID();
             if (byOriginal.TryGetValue(id, out var cached))
                 return cached;
-
-            Texture2D result = null;
             var key = TextureKey.Of(original);
+            Texture2D result = null;
             if (files.TryGetValue(key, out var path))
             {
-                try
-                {
-                    result = Load(path, original, linear);
-                    replacementKeys[result.GetInstanceID()] = key;
-                    if (Plugin.LogReplacements.Value)
-                        Plugin.Log.LogInfo($"Replaced {key} -> {result.width}x{result.height}");
-                }
-                catch (Exception e)
-                {
-                    Plugin.Log.LogError($"Failed to load {path}: {e.Message}");
-                }
+                var existing = Loaded(key);
+                result = existing ?? Finish(key, path, () => LoadNow(path, original, linear));
             }
             byOriginal[id] = result;
             return result;
         }
 
-        private static Texture2D Load(string path, Texture2D original, bool linear) =>
-            path.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) ? LoadDds(path, original, linear) : LoadPng(path, original, linear);
+        /// <summary>
+        /// True with the replacement (or null if there is none) when it's known; false while its file is still
+        /// being read in the background. Call again later (after <see cref="Pump"/> reports progress).
+        /// </summary>
+        public bool TryGetAsync(Texture2D original, bool linear, out Texture2D result)
+        {
+            var id = original.GetInstanceID();
+            if (byOriginal.TryGetValue(id, out result))
+                return true;
+            var key = TextureKey.Of(original);
+            if (!files.TryGetValue(key, out var path))
+            {
+                byOriginal[id] = null;
+                return true;
+            }
+            var existing = Loaded(key);
+            if (existing != null)
+            {
+                byOriginal[id] = result = existing;
+                return true;
+            }
+            if (!path.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
+            {
+                result = Get(original, linear);   // hand-made PNGs are rare; decode them on the spot
+                return true;
+            }
+            lock (gate)
+            {
+                if (!pending.TryGetValue(key, out var p))
+                {
+                    pending[key] = p = new Pending { Key = key, Path = path, Linear = linear, Template = original };
+                    queue.Enqueue(p);
+                }
+                if (!p.Originals.Contains(id)) p.Originals.Add(id);
+            }
+            StartNextRead();
+            return false;
+        }
+
+        /// <summary>Uploads a finished background read, if any. Returns true when a texture became available.</summary>
+        public bool Pump()
+        {
+            Pending done;
+            int length;
+            string error;
+            lock (gate)
+            {
+                if (reading == null || readLength < 0) return false;
+                done = reading;
+                length = readLength;
+                error = readError;
+                reading = null;
+            }
+
+            Texture2D result = null;
+            if (error != null)
+                Plugin.Log.LogError($"Failed to read {done.Path}: {error}");
+            else if (done.Template != null)
+                result = Finish(done.Key, done.Path, () => LoadDds(asyncBuffer, length, done.Template, done.Linear));
+            lock (gate) pending.Remove(done.Key);
+            foreach (var id in done.Originals) byOriginal[id] = result;
+            StartNextRead();
+            return true;
+        }
+
+        private void StartNextRead()
+        {
+            Pending next;
+            int gen;
+            lock (gate)
+            {
+                if (reading != null || queue.Count == 0) return;
+                next = queue.Dequeue();
+                reading = next;
+                readLength = -1;
+                readError = null;
+                gen = generation;
+            }
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                int n = -1;
+                string err = null;
+                try { n = ReadInto(next.Path, ref asyncBuffer); }
+                catch (Exception e) { err = e.Message; n = 0; }
+                lock (gate)
+                {
+                    if (gen != generation || reading != next) return;
+                    readError = err;
+                    readLength = n;
+                }
+            });
+        }
+
+        // An already-loaded replacement for this key (several originals can share one).
+        private Texture2D Loaded(string key) => byKey.TryGetValue(key, out var t) ? t : null;
+
+        private Texture2D Finish(string key, string path, Func<Texture2D> load)
+        {
+            try
+            {
+                var result = load();
+                replacementKeys[result.GetInstanceID()] = key;
+                byKey[key] = result;
+                if (Plugin.LogReplacements.Value)
+                    Plugin.Log.LogInfo($"Replaced {key} -> {result.width}x{result.height}");
+                return result;
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogError($"Failed to load {path}: {e.Message}");
+                return null;
+            }
+        }
+
+        private Texture2D LoadNow(string path, Texture2D original, bool linear)
+        {
+            if (!path.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) return LoadPng(path, original, linear);
+            int length = ReadInto(path, ref syncBuffer);
+            return LoadDds(syncBuffer, length, original, linear);
+        }
+
+        // Reads a whole file into `buffer`, growing it only when a bigger file comes along.
+        private static int ReadInto(string path, ref byte[] buffer)
+        {
+            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16))
+            {
+                var length = (int)fs.Length;
+                if (buffer.Length < length) buffer = new byte[Math.Max(length, buffer.Length * 2)];
+                int read = 0;
+                while (read < length)
+                {
+                    int n = fs.Read(buffer, read, length - read);
+                    if (n <= 0) throw new IOException("unexpected end of file");
+                    read += n;
+                }
+                return length;
+            }
+        }
 
         private static void CopySettings(Texture2D tex, Texture2D original)
         {
@@ -106,10 +266,9 @@ namespace GSOHDTextures
         private const int DdsHeaderSize = 4 + 124;
 
         // Reads the DDS header (DX10 extension for BC7) and uploads the blocks without touching them.
-        private static Texture2D LoadDds(string path, Texture2D original, bool linear)
+        private static Texture2D LoadDds(byte[] bytes, int length, Texture2D original, bool linear)
         {
-            var bytes = File.ReadAllBytes(path);
-            if (bytes.Length < DdsHeaderSize || BitConverter.ToUInt32(bytes, 0) != 0x20534444) // "DDS "
+            if (length < DdsHeaderSize || BitConverter.ToUInt32(bytes, 0) != 0x20534444) // "DDS "
                 throw new Exception("not a DDS file");
             var height = BitConverter.ToInt32(bytes, 12);
             var width = BitConverter.ToInt32(bytes, 16);
@@ -136,7 +295,7 @@ namespace GSOHDTextures
             var size = 0;
             for (var i = 0; i < mips; i++)
                 size += ((Math.Max(1, width >> i) + 3) / 4) * ((Math.Max(1, height >> i) + 3) / 4) * blockBytes;
-            if (bytes.Length < offset + size)
+            if (length < offset + size)
                 throw new Exception("DDS file is truncated");
 
             var tex = new Texture2D(width, height, format, mips > 1, linear);

@@ -9,8 +9,11 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Interface scaling for high-resolution screens. The classic HUD, chat, windows, login and character screens grow with the screen height (1080p = 100%), with your own preference on top: an **Interface scale** slider in Main menu → Video options, Ctrl + = / - / 0, or `UI.Scale` in the config. Text stays sharp, and the minimap and other canvas UI follow the same setting. Mouse hover, clicks, dragging and nameplates stay aligned.
 - Interface icons and images are drawn from the texture pack, so the larger interface stays sharp.
 - DevBridge commands `hdui` (screen, UI options, canvases), `setuiscale` and `openwindow`.
+- Enhanced lighting (on by default, **F10** compares with the original): sky-coloured ambient light instead of flat grey, ambient occlusion, rebalanced exposure/contrast/saturation (caves keep their torch-lit exposure) and anisotropic filtering, all tunable under `[Graphics]`.
+- DevBridge commands `frames` (frame-time statistics with hitches, garbage collections and allocation rate), `lighting` (sky, ambient, shadow and post-processing values) and `gfx on|off`.
 
 ### Fixed
+- No more small stutter every 2 seconds. The periodic check for new materials did all ~2,900 materials in one frame (about 25 ms, frames up to 45 ms); it now runs a slice per frame, and textures that appear during play are read on a background thread into reused buffers and uploaded one per frame. Scene loads still load everything behind the loading screen.
 - Grass shows again. Terrain grass textures are no longer replaced: Unity builds grass from them on the CPU, and the compressed HD versions turned it into coloured noise.
 
 ### Changed

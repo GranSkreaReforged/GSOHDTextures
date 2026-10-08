@@ -20,7 +20,7 @@ game assets ──dump.ps1──▶ work/dump/<key>.png ──upscale.ps1──�
 ```
 
 - **Key:** every texture is identified as `<name>__<width>x<height>` (the original size), e.g. `Roof_A_A__512x512.png`. A few keys are shared by different images (e.g. four different `Material.001_Base_Color`) or differ only in case. The plugin can't tell those apart, so `dump.ps1` marks them and they keep their original look.
-- **Plugin:** at scene load and every few seconds, it scans all materials (and terrain splat and detail textures). When a texture has a matching file, it loads that file once and points the material at it. Packs are BC7 `.dds` files with mipmaps, uploaded to the GPU as-is. A hand-made `.png` also works; it is decoded and compressed in-game, which is slower.
+- **Plugin:** at scene load it scans all materials and terrain textures behind the loading screen, loading every matching file at once so you arrive with the scene sharp. During play it keeps checking for new materials (NPCs, equipment, effects) a slice at a time (about 1 ms per frame), and new textures are read on a background thread and uploaded one per frame, so nothing stalls a frame. Packs are BC7 `.dds` files with mipmaps, uploaded to the GPU as-is. A hand-made `.png` also works; it is decoded and compressed in-game, which is slower. Terrain grass is left alone (Unity builds it on the CPU, which compressed textures break).
 - **Upscaling:** Real-ESRGAN x4 runs on a wrap-padded copy of each texture so tiling edges stay seamless. The result is cropped and Lanczos-resized to `-Scale` (default 2×, max 4096). Its brightness and colour are corrected back to the original's (the AI only adds detail), and alpha is restored from the original. Normal, height, metallic, gloss, AO and mask maps get a plain resize, because AI detail breaks lighting.
 
 ## Interface scaling
@@ -33,6 +33,17 @@ The classic interface (HUD, hotbar, chat, every window, the login and character 
 - Icons and other interface images are drawn from the texture pack when it has them, so they stay sharp. Text is re-rendered at the new size, not magnified.
 
 Turn it off with `UI.Enabled = false`, or set `UI.AutoScale = false` to use native pixels times `UI.Scale`. The game's own `/scalegui` console mode (a stretch to a fixed size) takes precedence when it's on.
+
+## Enhanced lighting
+
+The original look is flat and washed out: one grey ambient colour everywhere, exposure pushed up (+1.4) with contrast lowered (0.85), no ambient occlusion and no anisotropic filtering. The plugin uses what the game already ships to do better:
+
+- **Sky ambient:** shaded areas take the sky, horizon and ground colours from the time-of-day sky (softened so daylight doesn't turn blue), instead of one flat grey.
+- **Ambient occlusion:** soft contact shadows in corners, under roofs and where things meet the ground.
+- **Grading:** exposure 1.15, contrast 1.1, saturation 1.1. Caves and dungeons keep the original exposure, because they're lit by torches.
+- **Anisotropic filtering:** ground and walls stay sharp at shallow angles.
+
+Press **F10** in-game to switch between the original and enhanced look. Every part can be tuned or turned off under `[Graphics]` in the config. It costs no measurable frame rate on an RX 7900 XTX.
 
 ## Building a texture pack
 
@@ -101,6 +112,14 @@ Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 | `UI.Scale` | 1 | your preference on top, 0.5 to 3; also Video options → Interface scale, or Ctrl + = / - / 0 |
 | `UI.HdTextures` | true | draw interface images from the texture pack |
 | `UI.ScaleUpKey` / `ScaleDownKey` / `ScaleResetKey` | Ctrl + = / - / 0 | |
+| `Graphics.EnhancedLighting` | true | the lighting changes above |
+| `Graphics.ToggleKey` | F10 | compare with the original look in-game |
+| `Graphics.SkyAmbient` | true | ambient light from the sky instead of flat grey |
+| `Graphics.SkyAmbientTint` / `SkyAmbientBrightness` | 0.5 / 1.6 | how much sky colour (0 = neutral), and how bright the shade is |
+| `Graphics.AmbientOcclusion` / `AmbientOcclusionIntensity` | true / 1 | |
+| `Graphics.Exposure` / `Contrast` / `Saturation` | 1.15 / 1.1 / 1.1 | original: 1.4 / 0.85 / 1 |
+| `Graphics.Bloom` | 1 | glow, relative to the original |
+| `Graphics.AnisotropicFiltering` | true | |
 
 The game folder is found automatically in any Steam library. Override it with `-GameDir`, `GSO_GAME_DIR` or `-p:GameDir=`.
 
@@ -113,7 +132,8 @@ The game folder is found automatically in any Steam library. Override it with `-
 - Canvas sprites (UGUI `Image`, e.g. the minimap frame) are not replaced with HD versions yet. A sprite's rect is in pixels, so it needs rebuilding at the new scale. Window frames drawn from the GUI skin are scaled but not replaced either; they hold up well up to about 2x.
 - At large scales on ultrawide screens the minimap (which also grows with screen width) can touch the HUD buttons next to it.
 - Only the shader properties in `TextureReplacer.BuiltInProperties` are checked (Unity 2017.4 can't list them at runtime). The list was mined from the game's materials with `tools/textures/props.py`; add others with `ExtraTextureProperties`.
-- Textures load on the main thread. DDS loading is fast, but entering a new area with hundreds of new textures still takes a moment longer than stock.
+- Entering a new scene loads its textures behind the loading screen, so it takes a moment longer than stock. During play, new textures stream in and can show their original for a moment first.
+- The game itself makes a ~15 ms garbage-collection pause every few seconds (Unity 2017's collector stops the game); that is in the original too and can't be fixed from a plugin.
 - BC7 needs DirectX 11. Under DirectX 9 the plugin ignores `.dds` files and says so in the log.
 - Lightmaps, reflection probes and font atlases are deliberately left alone.
 

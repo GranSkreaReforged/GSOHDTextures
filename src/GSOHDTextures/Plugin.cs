@@ -31,6 +31,18 @@ namespace GSOHDTextures
         internal static ConfigEntry<KeyboardShortcut> UiScaleUpKey;
         internal static ConfigEntry<KeyboardShortcut> UiScaleDownKey;
         internal static ConfigEntry<KeyboardShortcut> UiScaleResetKey;
+        internal static ConfigEntry<bool> GfxEnabled;
+        internal static ConfigEntry<KeyboardShortcut> GfxToggleKey;
+        internal static ConfigEntry<bool> GfxSkyAmbient;
+        internal static ConfigEntry<float> GfxAmbientTint;
+        internal static ConfigEntry<float> GfxAmbientBrightness;
+        internal static ConfigEntry<bool> GfxAmbientOcclusion;
+        internal static ConfigEntry<float> GfxAoIntensity;
+        internal static ConfigEntry<float> GfxExposure;
+        internal static ConfigEntry<float> GfxContrast;
+        internal static ConfigEntry<float> GfxSaturation;
+        internal static ConfigEntry<float> GfxBloom;
+        internal static ConfigEntry<bool> GfxAnisotropic;
 
         private void Awake()
         {
@@ -53,6 +65,19 @@ namespace GSOHDTextures
             UiScaleDownKey = Config.Bind("UI", "ScaleDownKey", new KeyboardShortcut(KeyCode.Minus, KeyCode.LeftControl), "Make the interface 5% smaller.");
             UiScaleResetKey = Config.Bind("UI", "ScaleResetKey", new KeyboardShortcut(KeyCode.Alpha0, KeyCode.LeftControl), "Reset Scale to 100%.");
 
+            GfxEnabled = Config.Bind("Graphics", "EnhancedLighting", true, "Richer lighting than the original: sky-coloured ambient light, ambient occlusion, rebalanced exposure and contrast, sharper textures at an angle. The settings below fine-tune it.");
+            GfxToggleKey = Config.Bind("Graphics", "ToggleKey", new KeyboardShortcut(KeyCode.F10), "Switch enhanced lighting on and off in-game, to compare with the original look.");
+            GfxSkyAmbient = Config.Bind("Graphics", "SkyAmbient", true, "Ambient light takes the sky, horizon and ground colours from the time-of-day sky, instead of one flat grey.");
+            GfxAmbientTint = Config.Bind("Graphics", "SkyAmbientTint", 0.5f, new ConfigDescription("How much of the sky's colour the ambient light takes (0 = neutral grey, 1 = full sky blue).", new AcceptableValueRange<float>(0f, 1.5f)));
+            GfxAmbientBrightness = Config.Bind("Graphics", "SkyAmbientBrightness", 1.6f, new ConfigDescription("Brightness of the sky ambient light (lights shaded areas).", new AcceptableValueRange<float>(0.5f, 3f)));
+            GfxAmbientOcclusion = Config.Bind("Graphics", "AmbientOcclusion", true, "Soft contact shadows in corners, under roofs and where objects meet the ground.");
+            GfxAoIntensity = Config.Bind("Graphics", "AmbientOcclusionIntensity", 1f, new ConfigDescription("Strength of the ambient occlusion.", new AcceptableValueRange<float>(0f, 4f)));
+            GfxExposure = Config.Bind("Graphics", "Exposure", 1.15f, new ConfigDescription("Overall brightness (the original uses 1.4, which washes colours out).", new AcceptableValueRange<float>(-2f, 3f)));
+            GfxContrast = Config.Bind("Graphics", "Contrast", 1.1f, new ConfigDescription("Contrast (the original uses 0.85).", new AcceptableValueRange<float>(0.5f, 2f)));
+            GfxSaturation = Config.Bind("Graphics", "Saturation", 1.1f, new ConfigDescription("Colour saturation (the original uses 1).", new AcceptableValueRange<float>(0f, 2f)));
+            GfxBloom = Config.Bind("Graphics", "Bloom", 1f, new ConfigDescription("Glow around bright areas, relative to the original.", new AcceptableValueRange<float>(0f, 4f)));
+            GfxAnisotropic = Config.Bind("Graphics", "AnisotropicFiltering", true, "Keep ground and wall textures sharp at shallow viewing angles.");
+
             TextureDir = Path.IsPathRooted(folder.Value) ? folder.Value : Path.Combine(Path.GetDirectoryName(Info.Location), folder.Value);
 
             var host = new GameObject("GSOHDTextures");
@@ -65,6 +90,7 @@ namespace GSOHDTextures
                 host.AddComponent<TextureReplacer>();
                 if (UiHdTextures.Value) UiTextures.Patch(harmony);
             }
+            host.AddComponent<Lighting>();
             if (UiEnabled.Value)
             {
                 GSOHDTextures.UiScale.Patch(harmony);
@@ -72,7 +98,7 @@ namespace GSOHDTextures
                 host.AddComponent<UiController>();
             }
 
-            Log.LogInfo($"{Name} {Version} loaded. Textures: {(Enabled.Value ? TextureDir : "off")}, UI scaling: {(UiEnabled.Value ? "on" : "off")}.");
+            Log.LogInfo($"{Name} {Version} loaded. Textures: {(Enabled.Value ? TextureDir : "off")}, UI scaling: {(UiEnabled.Value ? "on" : "off")}, enhanced lighting: {(GfxEnabled.Value ? "on" : "off")} ({GfxToggleKey.Value} toggles).");
         }
     }
 }

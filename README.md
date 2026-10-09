@@ -8,7 +8,7 @@ It works with or without GSO Offline Server.
 
 ## Before and after
 
-Each row is the same moment from the same spot, switched in-game: the original game, the HD texture pack, and the HD texture pack with [enhanced lighting](#enhanced-lighting) (the default). Click an image for full size. The lighting is the most visible change; the HD textures mostly show up close and on large surfaces such as walls, rocks and the ground.
+Each row is the same moment from the same spot (10:00, clear weather, ambient particles off), switched in-game: the original game, the HD texture pack, and the HD texture pack with [enhanced lighting](#enhanced-lighting) (the default). Click an image for full size. The lighting is the most visible change; the HD textures mostly show up close and on large surfaces such as walls, rocks and the ground.
 
 | Original | HD textures | HD textures + enhanced lighting |
 |---|---|---|
@@ -16,7 +16,7 @@ Each row is the same moment from the same spot, switched in-game: the original g
 | ![Monastery, original](docs/images/monastery-original.jpg) | ![Monastery, HD textures](docs/images/monastery-hd-textures.jpg) | ![Monastery, HD textures and enhanced lighting](docs/images/monastery-hd-lighting.jpg) |
 | ![Fields near the ruins, original](docs/images/field-original.jpg) | ![Fields near the ruins, HD textures](docs/images/field-hd-textures.jpg) | ![Fields near the ruins, HD textures and enhanced lighting](docs/images/field-hd-lighting.jpg) |
 
-Screenshots taken on a 3440-pixel-wide screen and scaled down (interface cropped off), with a texture pack built by `tools/textures/` from the game's own art. The pack itself is not distributed.
+Screenshots taken on a 3440-pixel-wide screen and scaled down (interface cropped off), with a texture pack built by `tools/textures/` from the game's own art. The pack itself is not distributed. More screenshots are under [weather](#weather-and-daynight) and [ambient lights](#ambient-lights-and-particles).
 
 ## About this project
 
@@ -71,6 +71,10 @@ Caves and dungeons keep their own lighting and fog, with no rain. GSO Offline Se
 
 Type `/weather` in the chat to see the current weather and when it changes next. `/weather clear`, `cloudy`, `overcast`, `rain` or `fog` switches to that weather and keeps it, and `/weather auto` lets it change on its own again.
 
+| Sunset over the ruins | Morning fog | Rain in West Athagos |
+|---|---|---|
+| ![Sunset over the ruins](docs/images/weather-field-sunset.jpg) | ![Morning fog over the fields](docs/images/weather-field-fog.jpg) | ![Rain in West Athagos](docs/images/weather-town-rain.jpg) |
+
 ## Ambient lights and particles
 
 Lights and particles the game never had, found by name in each scene and attached to the objects they belong to:
@@ -90,6 +94,10 @@ Lights and particles the game never had, found by name in each scene and attache
   The smoke source is found by probing roofs for a narrow peak, which picks real chimneys and also the tips of pointed roofs.
 
 Caves have none of the outdoor effects. Each part can be switched off under `[Ambience]`. A new zone is scanned over a few dozen frames (about 3 ms each), so loading doesn't hitch.
+
+| Dusk: lamps and windows light up | Night, by moonlight | The monastery at dusk |
+|---|---|---|
+| ![West Athagos at dusk, with a lit street lamp, glowing windows and fireflies](docs/images/ambience-town-dusk.jpg) | ![West Athagos at night, with moonlight and lit windows](docs/images/ambience-town-night.jpg) | ![The monastery at dusk, with lit windows](docs/images/ambience-monastery-dusk.jpg) |
 
 ## Building a texture pack
 

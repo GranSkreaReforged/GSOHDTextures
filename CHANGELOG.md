@@ -4,6 +4,11 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 `release.ps1` turns the Unreleased heading into a version heading.
 
 ## [Unreleased]
+### Added
+- Weather and day/night. Clear skies, clouds, overcast, rain (with its sound) and fog now come and go every few minutes, blending in over a minute, and days run continuously, a full cycle every 15 minutes. It uses the game's own clouds, rain, fog and time-of-day sky, which only the server used to drive. It is mostly fair, fog favours early mornings, and it never snows. The sun dims and shadows soften under heavy cloud. With enhanced lighting the picture follows the time and weather: warm at dawn and dusk, cooler at night, duller in rain. Tune it under `[Weather]`.
+- Moonlit nights: a soft blue fill keeps characters and the ground readable at night, where the original left them as silhouettes (`Graphics.NightBrightness`, 0 = original).
+- DevBridge commands `weather` (clock, clouds, rain, fog and mood), `setweather <clear|partlycloudy|overcast|rain|fog> [now]` or `auto`, and `settime <0-2400>`.
+
 ### Changed
 - Branching: work happens on `feature/<area>/<name>` branches merged into `dev`, and each release is one merge of `dev` into `main` (README, "Branches and releasing"). Risky, large or core changes, and every release, go through a reviewed pull request.
 - Dev builds and release builds: every `build.ps1` build is a dev build, versioned like `1.0.0-dev+<branch>.<commit>` and logged at startup with "(dev build)". Only `release.ps1` makes release builds, with the plain version.

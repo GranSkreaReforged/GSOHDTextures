@@ -54,8 +54,20 @@ The original look is flat and washed out: one grey ambient colour everywhere, ex
 - **Ambient occlusion:** soft contact shadows in corners, under roofs and where things meet the ground.
 - **Grading:** exposure 1.15, contrast 1.1, saturation 1.1. Caves and dungeons keep the original exposure, because they're lit by torches.
 - **Anisotropic filtering:** ground and walls stay sharp at shallow angles.
+- **Moonlit nights:** the original nights leave everything not facing the moon pitch black. A soft blue moonlight fill keeps characters and the ground readable.
 
 Press **F10** in-game to switch between the original and enhanced look. Every part can be tuned or turned off under `[Graphics]` in the config. It costs no measurable frame rate on an RX 7900 XTX.
+
+## Weather and day/night
+
+The game has a complete weather system (clouds, an overcast layer, rain with its own sound, fog and a time-of-day sky), but the server drove it, so offline the sky never changes. The plugin drives it instead:
+
+- **Day and night** run continuously, a full cycle every 15 minutes (`Weather.DayLengthMinutes`), and keep going when you change zones.
+- **Weather** changes every 4 to 10 minutes between clear, partly cloudy, overcast, rain and fog, blending over a minute. It's mostly fair (`Weather.Mix`, default 40/30/15/10/5), and fog is most likely early in the morning. It never snows.
+- **Under heavy cloud** the sun dims and shadows soften. **In fog** the view closes in to about 110 m.
+- **With enhanced lighting on, the picture follows the time and weather:** warm at dawn and dusk, cooler at night, duller and darker in rain (`Weather.Mood`, 0 = off).
+
+Caves and dungeons keep their own lighting and fog, with no rain. GSO Offline Server's `/time` command still sets the clock.
 
 ## Building a texture pack
 
@@ -132,6 +144,13 @@ Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 | `Graphics.Exposure` / `Contrast` / `Saturation` | 1.15 / 1.1 / 1.1 | original: 1.4 / 0.85 / 1 |
 | `Graphics.Bloom` | 1 | glow, relative to the original |
 | `Graphics.AnisotropicFiltering` | true | |
+| `Graphics.NightBrightness` | 2 | moonlight fill at night; 0 = the original pitch-dark nights |
+| `Weather.Enabled` | true | changing weather and continuous day/night |
+| `Weather.DayLengthMinutes` | 15 | real minutes per full day; the game's own speed is 40 |
+| `Weather.Mix` | `Clear=40,PartlyCloudy=30,Overcast=15,Rain=10,Fog=5` | relative weights |
+| `Weather.MinMinutes` / `MaxMinutes` | 4 / 10 | how long each kind of weather lasts |
+| `Weather.BlendSeconds` | 60 | how long a change of weather takes |
+| `Weather.Mood` | 1 | time-of-day and weather tint (with enhanced lighting), 0 = off |
 
 The game folder is found automatically in any Steam library. Override it with `-GameDir`, `GSO_GAME_DIR` or `-p:GameDir=`.
 

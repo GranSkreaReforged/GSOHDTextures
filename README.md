@@ -54,8 +54,42 @@ The original look is flat and washed out: one grey ambient colour everywhere, ex
 - **Ambient occlusion:** soft contact shadows in corners, under roofs and where things meet the ground.
 - **Grading:** exposure 1.15, contrast 1.1, saturation 1.1. Caves and dungeons keep the original exposure, because they're lit by torches.
 - **Anisotropic filtering:** ground and walls stay sharp at shallow angles.
+- **Moonlit nights:** the original nights leave everything not facing the moon pitch black. A soft blue moonlight fill keeps characters and the ground readable.
 
 Press **F10** in-game to switch between the original and enhanced look. Every part can be tuned or turned off under `[Graphics]` in the config. It costs no measurable frame rate on an RX 7900 XTX.
+
+## Weather and day/night
+
+The game has a complete weather system (clouds, an overcast layer, rain with its own sound, fog and a time-of-day sky), but the server drove it, so offline the sky never changes. The plugin drives it instead:
+
+- **Day and night** run continuously, a full cycle every 15 minutes (`Weather.DayLengthMinutes`), and keep going when you change zones.
+- **Weather** changes every 4 to 10 minutes between clear, partly cloudy, overcast, rain and fog, blending over a minute. It's mostly fair (`Weather.Mix`, default 40/30/15/10/5), and fog is most likely early in the morning. It never snows.
+- **Under heavy cloud** the sun dims and shadows soften. **In fog** the view closes in to about 110 m.
+- **With enhanced lighting on, the picture follows the time and weather:** warm at dawn and dusk, cooler at night, duller and darker in rain (`Weather.Mood`, 0 = off).
+
+Caves and dungeons keep their own lighting and fog, with no rain. GSO Offline Server's `/time` command still sets the clock.
+
+Type `/weather` in the chat to see the current weather and when it changes next. `/weather clear`, `cloudy`, `overcast`, `rain` or `fog` switches to that weather and keeps it, and `/weather auto` lets it change on its own again.
+
+## Ambient lights and particles
+
+Lights and particles the game never had, found by name in each scene and attached to the objects they belong to:
+
+- **Street lamps** glow and light their surroundings from dusk to dawn. Those without a light of their own get one.
+- **Standing torches** without a fire get the same flame, light, sparks and smoke as the lit ones.
+- **Fires, torches and lanterns** flicker instead of glowing steadily.
+- **Windows** of houses and the monastery glow warmly at night, in about 60% of buildings.
+- **Lightning** strikes in heavy rain: a bolt in the distance, a flash, and thunder after the time sound takes to arrive. The thunder is synthesised, because the game has no thunder sound.
+- **Particles around you:**
+  - Fireflies on dry nights.
+  - Dust and pollen on fair days.
+  - Mist over the sea at dawn and in fog.
+  - Leaves falling from broadleaf trees and bushes.
+  - Smoke rising from the tops of roofs.
+
+  The smoke source is found by probing roofs for a narrow peak, which picks real chimneys and also the tips of pointed roofs.
+
+Caves have none of the outdoor effects. Each part can be switched off under `[Ambience]`. A new zone is scanned over a few dozen frames (about 3 ms each), so loading doesn't hitch.
 
 ## Building a texture pack
 
@@ -132,12 +166,46 @@ Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 | `Graphics.Exposure` / `Contrast` / `Saturation` | 1.15 / 1.1 / 1.1 | original: 1.4 / 0.85 / 1 |
 | `Graphics.Bloom` | 1 | glow, relative to the original |
 | `Graphics.AnisotropicFiltering` | true | |
+| `Graphics.NightBrightness` | 2 | moonlight fill at night; 0 = the original pitch-dark nights |
+| `Weather.Enabled` | true | changing weather and continuous day/night |
+| `Weather.DayLengthMinutes` | 15 | real minutes per full day; the game's own speed is 40 |
+| `Weather.Mix` | `Clear=40,PartlyCloudy=30,Overcast=15,Rain=10,Fog=5` | relative weights |
+| `Weather.MinMinutes` / `MaxMinutes` | 4 / 10 | how long each kind of weather lasts |
+| `Weather.BlendSeconds` | 60 | how long a change of weather takes |
+| `Weather.Mood` | 1 | time-of-day and weather tint (with enhanced lighting), 0 = off |
+| `Ambience.Enabled` | true | extra lights and particles (restart to switch completely) |
+| `Ambience.Lamps` / `TorchFires` / `Flicker` / `Windows` / `Lightning` | true | |
+| `Ambience.LitWindowShare` | 0.6 | share of buildings with lit windows |
+| `Ambience.Fireflies` / `DustMotes` / `WaterMist` / `FallingLeaves` / `ChimneySmoke` | true | |
+| `Ambience.ParticleDensity` | 1 | amount of particles, 0 to 3 |
 
 The game folder is found automatically in any Steam library. Override it with `-GameDir`, `GSO_GAME_DIR` or `-p:GameDir=`.
 
-## Releasing
+## Branches and releasing
 
-`.\release.ps1 -Version x.y.z` (PowerShell 7) packages the plugin only, commits, and tags. It never pushes. Work happens on `dev`; `main` is for releases.
+| Branch | Role |
+|---|---|
+| `main` | Releases only. Each release is one reviewed pull request from `dev`. |
+| `dev` | Integration. Every feature merges here. |
+| `feature/<area>/<name>`, `fix/<area>/<name>` | One piece of work, branched from `dev`, e.g. `feature/ui/sprite-replacement`. |
+
+Branch from `dev`, work locally, then merge it back with `git merge --no-ff` (one merge per feature on `dev`), push `dev` and delete the branch. Feature branches stay local unless you want one backed up or shared. If `dev` moved on and the feature conflicts, rebase the branch onto `dev` while it's local, or merge `dev` into it if it has been pushed.
+
+Changes that could break the game, carry a security risk (downloads, running processes, deleting files, new dependencies, what goes into release zips), are large (roughly 300+ lines of code or 10+ files) or touch core files (the Harmony transpilers, `TextureStore`/`TextureReplacer`, the texture key, the build and release scripts) go to `dev` through a pull request that the maintainer reviews and merges on GitHub. The branch's final commit is the pull request: first line the title, the rest the description. Merge with **Create a merge commit**.
+
+`build.ps1` makes **dev builds**, versioned like `1.0.0-dev+<branch>.<commit>` and logged at startup with "(dev build)"; they're for testing, never shipped. Only `release.ps1` makes **release builds** (plain version, tagged, zipped).
+
+A release (PowerShell 7) packages the plugin only, never textures. It runs on `dev`, and its commit ("Release vx.y.z" plus that version's CHANGELOG section) becomes the `dev` -> `main` pull request:
+
+```powershell
+git switch dev; git pull --ff-only
+.\release.ps1 -Version x.y.z -DryRun
+.\release.ps1 -Version x.y.z        # commits and tags on dev; it never pushes
+git push origin dev                 # then open the pull request dev -> main from that commit
+# once it's merged:
+git push origin vx.y.z
+git switch main; git pull --ff-only; git switch dev; git merge --ff-only main; git push
+```
 
 ## Known limitations / roadmap
 

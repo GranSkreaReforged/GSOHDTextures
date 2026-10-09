@@ -49,6 +49,24 @@ namespace GSOHDTextures
                 RenderSettings.ambientMode = AmbientMode.Flat;
         }
 
+        // Moonlight fill. At night the sky's ambient colours are nearly black (sky ~0.016), so anything not facing
+        // the moon is a silhouette; the multipliers don't help, because Trilight ambient ignores ambientIntensity.
+        // Add a soft blue fill to the three colours each time the sky writes them, scaled by how far the sun is down.
+        private static readonly Color MoonFill = new Color(0.03f, 0.035f, 0.05f, 0f);
+        private Color lastSky, lastEquator, lastGround;
+
+        private void LateUpdate()
+        {
+            if (!on || sky == null || !Plugin.GfxSkyAmbient.Value || RenderSettings.ambientMode != AmbientMode.Trilight) return;
+            if (RenderSettings.ambientSkyColor == lastSky && RenderSettings.ambientEquatorColor == lastEquator && RenderSettings.ambientGroundColor == lastGround)
+                return;   // still our own values: the sky hasn't updated since
+            float night = Mathf.Clamp01((sky.SunZenith - 90f) / 12f);   // 0 at sunset, 1 once the sun is 12 degrees down
+            var fill = MoonFill * (Plugin.GfxNightBrightness.Value * night);
+            lastSky = RenderSettings.ambientSkyColor += fill;
+            lastEquator = RenderSettings.ambientEquatorColor += fill;
+            lastGround = RenderSettings.ambientGroundColor += fill * 0.6f;
+        }
+
         /// <summary>Turns enhanced lighting on or off now (toggle key, DevBridge "gfx"), remembering the choice.</summary>
         internal void Set(bool value)
         {
@@ -80,13 +98,9 @@ namespace GSOHDTextures
             var s = TOD_Sky.Instance;
             var weather = Script_WeatherController.instance;
             bool underground = weather != null && weather.isUnderground;
+            if (profile != null) ApplyGrading(underground);
             if (profile != null && (!applied || underground != appliedUnderground))
             {
-                var g = originalGrading;
-                g.basic.postExposure = underground ? originalGrading.basic.postExposure : Plugin.GfxExposure.Value;
-                g.basic.contrast = underground ? 1f : Plugin.GfxContrast.Value;
-                g.basic.saturation = Plugin.GfxSaturation.Value;
-                profile.colorGrading.settings = g;
                 appliedUnderground = underground;
 
                 if (Plugin.GfxAmbientOcclusion.Value)
@@ -128,6 +142,31 @@ namespace GSOHDTextures
             if (Plugin.GfxAnisotropic.Value) QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
         }
 
+        private float lastExposure = float.NaN, lastContrast, lastSaturation, lastTemperature;
+
+        /// <summary>
+        /// The configured grading, shifted by the weather's time-of-day and weather mood. Re-applied only when it
+        /// moved noticeably: each change makes the post-processing stack rebuild its colour lookup texture.
+        /// </summary>
+        private void ApplyGrading(bool underground)
+        {
+            float exposure = 0f, temperature = 0f, saturation = 1f, contrast = 1f;
+            if (Weather.Instance != null) Weather.Instance.Mood(out exposure, out temperature, out saturation, out contrast);
+            var g = originalGrading;
+            g.basic.postExposure = underground ? originalGrading.basic.postExposure : Plugin.GfxExposure.Value + exposure;
+            g.basic.contrast = underground ? 1f : Plugin.GfxContrast.Value * contrast;
+            g.basic.saturation = Plugin.GfxSaturation.Value * saturation;
+            g.basic.temperature = originalGrading.basic.temperature + temperature;
+            if (applied && Mathf.Abs(g.basic.postExposure - lastExposure) < 0.01f && Mathf.Abs(g.basic.contrast - lastContrast) < 0.005f
+                && Mathf.Abs(g.basic.saturation - lastSaturation) < 0.005f && Mathf.Abs(g.basic.temperature - lastTemperature) < 0.25f)
+                return;
+            profile.colorGrading.settings = g;
+            lastExposure = g.basic.postExposure;
+            lastContrast = g.basic.contrast;
+            lastSaturation = g.basic.saturation;
+            lastTemperature = g.basic.temperature;
+        }
+
         private void Revert()
         {
             if (profile != null && applied)
@@ -138,6 +177,7 @@ namespace GSOHDTextures
                 profile.bloom.settings = originalBloom;
             }
             applied = false;
+            lastExposure = float.NaN;
             if (sky != null)
             {
                 sky.Ambient.Mode = originalAmbient;

@@ -39,7 +39,8 @@ if ($Clean) {
     Invoke-Checked dotnet @('clean', $project, '-c', $Configuration, '-nologo', '-v', 'q')
     if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 }
-Invoke-Checked dotnet @('build', $project, '-c', $Configuration, '-nologo')
+$label = Get-DevBuildLabel   # dev build: stamped with branch and commit (release builds come from release.ps1)
+Invoke-Checked dotnet @('build', $project, '-c', $Configuration, '-nologo', "-p:DevBuildLabel=$label")
 Write-InstallNote $stage 'GSOHDTextures' @'
   Textures: a pack built with tools\textures\pack.ps1 (work\pack\*.dds) goes in
      <game>\BepInEx\plugins\GSOHDTextures\textures\. Interface scaling works without one.

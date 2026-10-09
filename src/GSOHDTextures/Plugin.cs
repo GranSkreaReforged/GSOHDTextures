@@ -42,7 +42,28 @@ namespace GSOHDTextures
         internal static ConfigEntry<float> GfxContrast;
         internal static ConfigEntry<float> GfxSaturation;
         internal static ConfigEntry<float> GfxBloom;
+        internal static ConfigEntry<float> GfxNightBrightness;
         internal static ConfigEntry<bool> GfxAnisotropic;
+        internal static ConfigEntry<bool> WeatherEnabled;
+        internal static ConfigEntry<float> WeatherDayMinutes;
+        internal static ConfigEntry<string> WeatherMix;
+        internal static ConfigEntry<float> WeatherMinMinutes;
+        internal static ConfigEntry<float> WeatherMaxMinutes;
+        internal static ConfigEntry<float> WeatherBlendSeconds;
+        internal static ConfigEntry<float> WeatherMood;
+        internal static ConfigEntry<bool> AmbEnabled;
+        internal static ConfigEntry<bool> AmbLamps;
+        internal static ConfigEntry<bool> AmbTorchFires;
+        internal static ConfigEntry<bool> AmbFlicker;
+        internal static ConfigEntry<bool> AmbWindows;
+        internal static ConfigEntry<float> AmbWindowShare;
+        internal static ConfigEntry<bool> AmbLightning;
+        internal static ConfigEntry<bool> AmbFireflies;
+        internal static ConfigEntry<bool> AmbDust;
+        internal static ConfigEntry<bool> AmbMist;
+        internal static ConfigEntry<bool> AmbLeaves;
+        internal static ConfigEntry<bool> AmbSmoke;
+        internal static ConfigEntry<float> AmbDensity;
 
         private void Awake()
         {
@@ -75,8 +96,31 @@ namespace GSOHDTextures
             GfxExposure = Config.Bind("Graphics", "Exposure", 1.15f, new ConfigDescription("Overall brightness (the original uses 1.4, which washes colours out).", new AcceptableValueRange<float>(-2f, 3f)));
             GfxContrast = Config.Bind("Graphics", "Contrast", 1.1f, new ConfigDescription("Contrast (the original uses 0.85).", new AcceptableValueRange<float>(0.5f, 2f)));
             GfxSaturation = Config.Bind("Graphics", "Saturation", 1.1f, new ConfigDescription("Colour saturation (the original uses 1).", new AcceptableValueRange<float>(0f, 2f)));
+            GfxNightBrightness = Config.Bind("Graphics", "NightBrightness", 2f, new ConfigDescription("Soft moonlight fill at night, so characters and the ground aren't silhouettes (0 = the original pitch-dark nights). Applies with SkyAmbient.", new AcceptableValueRange<float>(0f, 5f)));
             GfxBloom = Config.Bind("Graphics", "Bloom", 1f, new ConfigDescription("Glow around bright areas, relative to the original.", new AcceptableValueRange<float>(0f, 4f)));
             GfxAnisotropic = Config.Bind("Graphics", "AnisotropicFiltering", true, "Keep ground and wall textures sharp at shallow viewing angles.");
+
+            WeatherEnabled = Config.Bind("Weather", "Enabled", true, "Changing weather (clear, cloudy, overcast, rain, fog) and a continuous day/night cycle, using the game's own clouds, rain, fog and time-of-day sky. Never snow.");
+            WeatherDayMinutes = Config.Bind("Weather", "DayLengthMinutes", 15f, new ConfigDescription("Real minutes for a full day and night (the game's own speed is 40).", new AcceptableValueRange<float>(2f, 240f)));
+            WeatherMix = Config.Bind("Weather", "Mix", "Clear=40,PartlyCloudy=30,Overcast=15,Rain=10,Fog=5", "How often each kind of weather comes up (relative weights). Fog is three times as likely early in the morning.");
+            WeatherMinMinutes = Config.Bind("Weather", "MinMinutes", 4f, new ConfigDescription("Shortest time one kind of weather lasts.", new AcceptableValueRange<float>(0.5f, 120f)));
+            WeatherMaxMinutes = Config.Bind("Weather", "MaxMinutes", 10f, new ConfigDescription("Longest time one kind of weather lasts.", new AcceptableValueRange<float>(0.5f, 240f)));
+            WeatherBlendSeconds = Config.Bind("Weather", "BlendSeconds", 60f, new ConfigDescription("How long the change from one kind of weather to the next takes.", new AcceptableValueRange<float>(1f, 600f)));
+            WeatherMood = Config.Bind("Weather", "Mood", 1f, new ConfigDescription("How strongly time of day and weather tint the picture with enhanced lighting on: cooler, darker nights, warm dawns and dusks, duller rain (0 = off).", new AcceptableValueRange<float>(0f, 2f)));
+
+            AmbEnabled = Config.Bind("Ambience", "Enabled", true, "Extra lights and particles the game didn't have. The settings below switch each part.");
+            AmbLamps = Config.Bind("Ambience", "Lamps", true, "Street lamps light up at dusk with a warm glow (the ones without a light get one).");
+            AmbTorchFires = Config.Bind("Ambience", "TorchFires", true, "Standing torches without a fire get the same flame, light and smoke as the lit ones.");
+            AmbFlicker = Config.Bind("Ambience", "Flicker", true, "Fires, torches and lamps flicker instead of glowing steadily.");
+            AmbWindows = Config.Bind("Ambience", "Windows", true, "House and church windows glow warmly after dark.");
+            AmbWindowShare = Config.Bind("Ambience", "LitWindowShare", 0.6f, new ConfigDescription("Share of buildings with lit windows at night.", new AcceptableValueRange<float>(0f, 1f)));
+            AmbLightning = Config.Bind("Ambience", "Lightning", true, "Lightning flashes and thunder during heavy rain.");
+            AmbFireflies = Config.Bind("Ambience", "Fireflies", true, "Fireflies drifting near the ground on dry nights.");
+            AmbDust = Config.Bind("Ambience", "DustMotes", true, "Faint dust and pollen floating in the air on fair days.");
+            AmbMist = Config.Bind("Ambience", "WaterMist", true, "Low mist drifting over the sea early in the morning and in fog.");
+            AmbLeaves = Config.Bind("Ambience", "FallingLeaves", true, "Leaves drifting down from broadleaf trees.");
+            AmbSmoke = Config.Bind("Ambience", "ChimneySmoke", true, "Smoke rising from chimneys.");
+            AmbDensity = Config.Bind("Ambience", "ParticleDensity", 1f, new ConfigDescription("Amount of fireflies, dust, mist, leaves and smoke.", new AcceptableValueRange<float>(0f, 3f)));
 
             TextureDir = Path.IsPathRooted(folder.Value) ? folder.Value : Path.Combine(Path.GetDirectoryName(Info.Location), folder.Value);
 
@@ -91,6 +135,12 @@ namespace GSOHDTextures
                 if (UiHdTextures.Value) UiTextures.Patch(harmony);
             }
             host.AddComponent<Lighting>();
+            if (WeatherEnabled.Value)
+            {
+                host.AddComponent<Weather>();
+                WeatherCommand.Patch(harmony);
+            }
+            if (AmbEnabled.Value) host.AddComponent<Ambience>();
             if (UiEnabled.Value)
             {
                 GSOHDTextures.UiScale.Patch(harmony);
@@ -98,7 +148,7 @@ namespace GSOHDTextures
                 host.AddComponent<UiController>();
             }
 
-            Log.LogInfo($"{Name} {Version} loaded. Textures: {(Enabled.Value ? TextureDir : "off")}, UI scaling: {(UiEnabled.Value ? "on" : "off")}, enhanced lighting: {(GfxEnabled.Value ? "on" : "off")} ({GfxToggleKey.Value} toggles).");
+            Log.LogInfo($"{Name} {PluginInfo.BuildVersion} loaded{(PluginInfo.ReleaseBuild ? "" : " (dev build)")}. Textures: {(Enabled.Value ? TextureDir : "off")}, UI scaling: {(UiEnabled.Value ? "on" : "off")}, enhanced lighting: {(GfxEnabled.Value ? "on" : "off")} ({GfxToggleKey.Value} toggles), weather: {(WeatherEnabled.Value ? WeatherDayMinutes.Value + " min days" : "off")}.");
         }
     }
 }

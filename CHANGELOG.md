@@ -5,6 +5,20 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-09
+### Added
+- Weather and day/night. Clear skies, clouds, overcast, rain (with its sound) and fog now come and go every few minutes, blending in over a minute, and days run continuously, a full cycle every 15 minutes. It uses the game's own clouds, rain, fog and time-of-day sky, which only the server used to drive. It is mostly fair, fog favours early mornings, and it never snows. The sun dims and shadows soften under heavy cloud. With enhanced lighting the picture follows the time and weather: warm at dawn and dusk, cooler at night, duller in rain. Tune it under `[Weather]`.
+- Moonlit nights: a soft blue fill keeps characters and the ground readable at night, where the original left them as silhouettes (`Graphics.NightBrightness`, 0 = original).
+- `/weather` chat command: shows the weather and when it changes next. `/weather clear|cloudy|overcast|rain|fog` sets one and keeps it, and `/weather auto` goes back to changing weather. Answered by this plugin, so it works with or without GSO Offline Server.
+- DevBridge commands `weather` (clock, clouds, rain, fog and mood), `setweather <clear|partlycloudy|overcast|rain|fog> [now]` or `auto`, and `settime <0-2400>`.
+- Ambient lights and particles. Street lamps glow and light up at dusk, unlit standing torches get fires, and fires, torches and lanterns flicker. Windows glow warmly at night in about 60% of buildings. Heavy rain brings lightning with distant bolts, flashes and synthesised thunder. Around you, fireflies drift on dry nights, dust and pollen float on fair days, mist lies over the sea at dawn and in fog, leaves fall from broadleaf trees, and smoke rises from roof tops. Each part can be switched off under `[Ambience]`.
+- DevBridge commands `ambience`, `findnames`, `inspect` and `mattex` (what lights, particles, objects and materials a scene has), `ambstatus`, `amblamps`, `ambchimneys`, `ambwindow` and `ambviewchimney` (what the ambience module added, and views for screenshots), and `lightning`.
+
+### Changed
+- Branching: work happens on `feature/<area>/<name>` branches merged into `dev`, and each release is one merge of `dev` into `main` (README, "Branches and releasing"). Risky, large or core changes, and every release, go through a reviewed pull request.
+- Dev builds and release builds: every `build.ps1` build is a dev build, versioned like `1.0.0-dev+<branch>.<commit>` and logged at startup with "(dev build)". Only `release.ps1` makes release builds, with the plain version.
+- `release.ps1` runs on `dev`: its "Release vX" commit carries that version's CHANGELOG section, which becomes the `dev` -> `main` pull request.
+
 ## [1.0.0] - 2026-10-08
 ### Added
 - Interface scaling for high-resolution screens. The classic HUD, chat, windows, login and character screens grow with the screen height (1080p = 100%), with your own preference on top: an **Interface scale** slider in Main menu → Video options, Ctrl + = / - / 0, or `UI.Scale` in the config. Text stays sharp, and the minimap and other canvas UI follow the same setting. Mouse hover, clicks, dragging and nameplates stay aligned.

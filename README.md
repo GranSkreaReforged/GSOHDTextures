@@ -135,9 +135,25 @@ Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 
 The game folder is found automatically in any Steam library. Override it with `-GameDir`, `GSO_GAME_DIR` or `-p:GameDir=`.
 
-## Releasing
+## Branches and releasing
 
-`.\release.ps1 -Version x.y.z` (PowerShell 7) packages the plugin only, commits, and tags. It never pushes. Work happens on `dev`; `main` is for releases.
+| Branch | Role |
+|---|---|
+| `main` | Releases only. Each release is one merge of `dev`. |
+| `dev` | Integration. Every feature merges here. |
+| `feature/<area>/<name>`, `fix/<area>/<name>` | One piece of work, branched from `dev`, e.g. `feature/ui/sprite-replacement`. |
+
+Branch from `dev`, push the branch while you work, then merge it back with `git merge --no-ff` (one merge per feature on `dev`) and delete it. If `dev` moved on and the feature conflicts, merge `dev` into the feature branch; don't rebase a pushed branch.
+
+A release (PowerShell 7) packages the plugin only, never textures:
+
+```powershell
+git switch main; git merge --no-ff dev -m "Merge dev for vx.y.z"
+.\release.ps1 -Version x.y.z -DryRun
+.\release.ps1 -Version x.y.z        # commits and tags; it never pushes
+git push --follow-tags
+git switch dev; git merge --ff-only main; git push
+```
 
 ## Known limitations / roadmap
 

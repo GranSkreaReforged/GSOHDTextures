@@ -50,6 +50,8 @@ namespace GSOHDTextures
         private readonly System.Random random = new System.Random();
 
         internal Pattern Current => pattern;
+        internal bool Held => forced;
+        internal int SecondsToChange => Mathf.Max(0, Mathf.RoundToInt(nextChange - Time.time));
         internal float Hour => clock < 0f ? 12f : clock / 100f;
         internal float Cloudiness => current.cloud;
         internal float FogAmount => current.fog;

@@ -135,7 +135,11 @@ namespace GSOHDTextures
                 if (UiHdTextures.Value) UiTextures.Patch(harmony);
             }
             host.AddComponent<Lighting>();
-            if (WeatherEnabled.Value) host.AddComponent<Weather>();
+            if (WeatherEnabled.Value)
+            {
+                host.AddComponent<Weather>();
+                WeatherCommand.Patch(harmony);
+            }
             if (AmbEnabled.Value) host.AddComponent<Ambience>();
             if (UiEnabled.Value)
             {

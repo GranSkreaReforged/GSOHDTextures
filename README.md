@@ -139,20 +139,26 @@ The game folder is found automatically in any Steam library. Override it with `-
 
 | Branch | Role |
 |---|---|
-| `main` | Releases only. Each release is one merge of `dev`. |
+| `main` | Releases only. Each release is one reviewed pull request from `dev`. |
 | `dev` | Integration. Every feature merges here. |
 | `feature/<area>/<name>`, `fix/<area>/<name>` | One piece of work, branched from `dev`, e.g. `feature/ui/sprite-replacement`. |
 
 Branch from `dev`, work locally, then merge it back with `git merge --no-ff` (one merge per feature on `dev`), push `dev` and delete the branch. Feature branches stay local unless you want one backed up or shared. If `dev` moved on and the feature conflicts, rebase the branch onto `dev` while it's local, or merge `dev` into it if it has been pushed.
 
-A release (PowerShell 7) packages the plugin only, never textures:
+Changes that could break the game, carry a security risk (downloads, running processes, deleting files, new dependencies, what goes into release zips), are large (roughly 300+ lines of code or 10+ files) or touch core files (the Harmony transpilers, `TextureStore`/`TextureReplacer`, the texture key, the build and release scripts) go to `dev` through a pull request that the maintainer reviews and merges on GitHub. The branch's final commit is the pull request: first line the title, the rest the description. Merge with **Create a merge commit**.
+
+`build.ps1` makes **dev builds**, versioned like `1.0.0-dev+<branch>.<commit>` and logged at startup with "(dev build)"; they're for testing, never shipped. Only `release.ps1` makes **release builds** (plain version, tagged, zipped).
+
+A release (PowerShell 7) packages the plugin only, never textures. It runs on `dev`, and its commit ("Release vx.y.z" plus that version's CHANGELOG section) becomes the `dev` -> `main` pull request:
 
 ```powershell
-git switch main; git merge --no-ff dev -m "Merge dev for vx.y.z"
+git switch dev; git pull --ff-only
 .\release.ps1 -Version x.y.z -DryRun
-.\release.ps1 -Version x.y.z        # commits and tags; it never pushes
-git push --follow-tags
-git switch dev; git merge --ff-only main; git push
+.\release.ps1 -Version x.y.z        # commits and tags on dev; it never pushes
+git push origin dev                 # then open the pull request dev -> main from that commit
+# once it's merged:
+git push origin vx.y.z
+git switch main; git pull --ff-only; git switch dev; git merge --ff-only main; git push
 ```
 
 ## Known limitations / roadmap

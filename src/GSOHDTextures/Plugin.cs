@@ -42,7 +42,15 @@ namespace GSOHDTextures
         internal static ConfigEntry<float> GfxContrast;
         internal static ConfigEntry<float> GfxSaturation;
         internal static ConfigEntry<float> GfxBloom;
+        internal static ConfigEntry<float> GfxNightBrightness;
         internal static ConfigEntry<bool> GfxAnisotropic;
+        internal static ConfigEntry<bool> WeatherEnabled;
+        internal static ConfigEntry<float> WeatherDayMinutes;
+        internal static ConfigEntry<string> WeatherMix;
+        internal static ConfigEntry<float> WeatherMinMinutes;
+        internal static ConfigEntry<float> WeatherMaxMinutes;
+        internal static ConfigEntry<float> WeatherBlendSeconds;
+        internal static ConfigEntry<float> WeatherMood;
 
         private void Awake()
         {
@@ -75,8 +83,17 @@ namespace GSOHDTextures
             GfxExposure = Config.Bind("Graphics", "Exposure", 1.15f, new ConfigDescription("Overall brightness (the original uses 1.4, which washes colours out).", new AcceptableValueRange<float>(-2f, 3f)));
             GfxContrast = Config.Bind("Graphics", "Contrast", 1.1f, new ConfigDescription("Contrast (the original uses 0.85).", new AcceptableValueRange<float>(0.5f, 2f)));
             GfxSaturation = Config.Bind("Graphics", "Saturation", 1.1f, new ConfigDescription("Colour saturation (the original uses 1).", new AcceptableValueRange<float>(0f, 2f)));
+            GfxNightBrightness = Config.Bind("Graphics", "NightBrightness", 2f, new ConfigDescription("Soft moonlight fill at night, so characters and the ground aren't silhouettes (0 = the original pitch-dark nights). Applies with SkyAmbient.", new AcceptableValueRange<float>(0f, 5f)));
             GfxBloom = Config.Bind("Graphics", "Bloom", 1f, new ConfigDescription("Glow around bright areas, relative to the original.", new AcceptableValueRange<float>(0f, 4f)));
             GfxAnisotropic = Config.Bind("Graphics", "AnisotropicFiltering", true, "Keep ground and wall textures sharp at shallow viewing angles.");
+
+            WeatherEnabled = Config.Bind("Weather", "Enabled", true, "Changing weather (clear, cloudy, overcast, rain, fog) and a continuous day/night cycle, using the game's own clouds, rain, fog and time-of-day sky. Never snow.");
+            WeatherDayMinutes = Config.Bind("Weather", "DayLengthMinutes", 15f, new ConfigDescription("Real minutes for a full day and night (the game's own speed is 40).", new AcceptableValueRange<float>(2f, 240f)));
+            WeatherMix = Config.Bind("Weather", "Mix", "Clear=40,PartlyCloudy=30,Overcast=15,Rain=10,Fog=5", "How often each kind of weather comes up (relative weights). Fog is three times as likely early in the morning.");
+            WeatherMinMinutes = Config.Bind("Weather", "MinMinutes", 4f, new ConfigDescription("Shortest time one kind of weather lasts.", new AcceptableValueRange<float>(0.5f, 120f)));
+            WeatherMaxMinutes = Config.Bind("Weather", "MaxMinutes", 10f, new ConfigDescription("Longest time one kind of weather lasts.", new AcceptableValueRange<float>(0.5f, 240f)));
+            WeatherBlendSeconds = Config.Bind("Weather", "BlendSeconds", 60f, new ConfigDescription("How long the change from one kind of weather to the next takes.", new AcceptableValueRange<float>(1f, 600f)));
+            WeatherMood = Config.Bind("Weather", "Mood", 1f, new ConfigDescription("How strongly time of day and weather tint the picture with enhanced lighting on: cooler, darker nights, warm dawns and dusks, duller rain (0 = off).", new AcceptableValueRange<float>(0f, 2f)));
 
             TextureDir = Path.IsPathRooted(folder.Value) ? folder.Value : Path.Combine(Path.GetDirectoryName(Info.Location), folder.Value);
 
@@ -91,6 +108,7 @@ namespace GSOHDTextures
                 if (UiHdTextures.Value) UiTextures.Patch(harmony);
             }
             host.AddComponent<Lighting>();
+            if (WeatherEnabled.Value) host.AddComponent<Weather>();
             if (UiEnabled.Value)
             {
                 GSOHDTextures.UiScale.Patch(harmony);
@@ -98,7 +116,7 @@ namespace GSOHDTextures
                 host.AddComponent<UiController>();
             }
 
-            Log.LogInfo($"{Name} {PluginInfo.BuildVersion} loaded{(PluginInfo.ReleaseBuild ? "" : " (dev build)")}. Textures: {(Enabled.Value ? TextureDir : "off")}, UI scaling: {(UiEnabled.Value ? "on" : "off")}, enhanced lighting: {(GfxEnabled.Value ? "on" : "off")} ({GfxToggleKey.Value} toggles).");
+            Log.LogInfo($"{Name} {PluginInfo.BuildVersion} loaded{(PluginInfo.ReleaseBuild ? "" : " (dev build)")}. Textures: {(Enabled.Value ? TextureDir : "off")}, UI scaling: {(UiEnabled.Value ? "on" : "off")}, enhanced lighting: {(GfxEnabled.Value ? "on" : "off")} ({GfxToggleKey.Value} toggles), weather: {(WeatherEnabled.Value ? WeatherDayMinutes.Value + " min days" : "off")}.");
         }
     }
 }

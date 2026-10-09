@@ -69,6 +69,8 @@ The game has a complete weather system (clouds, an overcast layer, rain with its
 
 Caves and dungeons keep their own lighting and fog, with no rain. GSO Offline Server's `/time` command still sets the clock.
 
+Type `/weather` in the chat to see the current weather and when it changes next. `/weather clear`, `cloudy`, `overcast`, `rain` or `fog` switches to that weather and keeps it, and `/weather auto` lets it change on its own again.
+
 ## Ambient lights and particles
 
 Lights and particles the game never had, found by name in each scene and attached to the objects they belong to:

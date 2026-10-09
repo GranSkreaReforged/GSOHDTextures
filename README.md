@@ -143,7 +143,7 @@ The game folder is found automatically in any Steam library. Override it with `-
 | `dev` | Integration. Every feature merges here. |
 | `feature/<area>/<name>`, `fix/<area>/<name>` | One piece of work, branched from `dev`, e.g. `feature/ui/sprite-replacement`. |
 
-Branch from `dev`, push the branch while you work, then merge it back with `git merge --no-ff` (one merge per feature on `dev`) and delete it. If `dev` moved on and the feature conflicts, merge `dev` into the feature branch; don't rebase a pushed branch.
+Branch from `dev`, work locally, then merge it back with `git merge --no-ff` (one merge per feature on `dev`), push `dev` and delete the branch. Feature branches stay local unless you want one backed up or shared. If `dev` moved on and the feature conflicts, rebase the branch onto `dev` while it's local, or merge `dev` into it if it has been pushed.
 
 A release (PowerShell 7) packages the plugin only, never textures:
 

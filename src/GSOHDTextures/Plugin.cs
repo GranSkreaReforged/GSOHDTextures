@@ -51,6 +51,19 @@ namespace GSOHDTextures
         internal static ConfigEntry<float> WeatherMaxMinutes;
         internal static ConfigEntry<float> WeatherBlendSeconds;
         internal static ConfigEntry<float> WeatherMood;
+        internal static ConfigEntry<bool> AmbEnabled;
+        internal static ConfigEntry<bool> AmbLamps;
+        internal static ConfigEntry<bool> AmbTorchFires;
+        internal static ConfigEntry<bool> AmbFlicker;
+        internal static ConfigEntry<bool> AmbWindows;
+        internal static ConfigEntry<float> AmbWindowShare;
+        internal static ConfigEntry<bool> AmbLightning;
+        internal static ConfigEntry<bool> AmbFireflies;
+        internal static ConfigEntry<bool> AmbDust;
+        internal static ConfigEntry<bool> AmbMist;
+        internal static ConfigEntry<bool> AmbLeaves;
+        internal static ConfigEntry<bool> AmbSmoke;
+        internal static ConfigEntry<float> AmbDensity;
 
         private void Awake()
         {
@@ -95,6 +108,20 @@ namespace GSOHDTextures
             WeatherBlendSeconds = Config.Bind("Weather", "BlendSeconds", 60f, new ConfigDescription("How long the change from one kind of weather to the next takes.", new AcceptableValueRange<float>(1f, 600f)));
             WeatherMood = Config.Bind("Weather", "Mood", 1f, new ConfigDescription("How strongly time of day and weather tint the picture with enhanced lighting on: cooler, darker nights, warm dawns and dusks, duller rain (0 = off).", new AcceptableValueRange<float>(0f, 2f)));
 
+            AmbEnabled = Config.Bind("Ambience", "Enabled", true, "Extra lights and particles the game didn't have. The settings below switch each part.");
+            AmbLamps = Config.Bind("Ambience", "Lamps", true, "Street lamps light up at dusk with a warm glow (the ones without a light get one).");
+            AmbTorchFires = Config.Bind("Ambience", "TorchFires", true, "Standing torches without a fire get the same flame, light and smoke as the lit ones.");
+            AmbFlicker = Config.Bind("Ambience", "Flicker", true, "Fires, torches and lamps flicker instead of glowing steadily.");
+            AmbWindows = Config.Bind("Ambience", "Windows", true, "House and church windows glow warmly after dark.");
+            AmbWindowShare = Config.Bind("Ambience", "LitWindowShare", 0.6f, new ConfigDescription("Share of buildings with lit windows at night.", new AcceptableValueRange<float>(0f, 1f)));
+            AmbLightning = Config.Bind("Ambience", "Lightning", true, "Lightning flashes and thunder during heavy rain.");
+            AmbFireflies = Config.Bind("Ambience", "Fireflies", true, "Fireflies drifting near the ground on dry nights.");
+            AmbDust = Config.Bind("Ambience", "DustMotes", true, "Faint dust and pollen floating in the air on fair days.");
+            AmbMist = Config.Bind("Ambience", "WaterMist", true, "Low mist drifting over the sea early in the morning and in fog.");
+            AmbLeaves = Config.Bind("Ambience", "FallingLeaves", true, "Leaves drifting down from broadleaf trees.");
+            AmbSmoke = Config.Bind("Ambience", "ChimneySmoke", true, "Smoke rising from chimneys.");
+            AmbDensity = Config.Bind("Ambience", "ParticleDensity", 1f, new ConfigDescription("Amount of fireflies, dust, mist, leaves and smoke.", new AcceptableValueRange<float>(0f, 3f)));
+
             TextureDir = Path.IsPathRooted(folder.Value) ? folder.Value : Path.Combine(Path.GetDirectoryName(Info.Location), folder.Value);
 
             var host = new GameObject("GSOHDTextures");
@@ -109,6 +136,7 @@ namespace GSOHDTextures
             }
             host.AddComponent<Lighting>();
             if (WeatherEnabled.Value) host.AddComponent<Weather>();
+            if (AmbEnabled.Value) host.AddComponent<Ambience>();
             if (UiEnabled.Value)
             {
                 GSOHDTextures.UiScale.Patch(harmony);

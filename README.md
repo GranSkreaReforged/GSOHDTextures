@@ -69,6 +69,26 @@ The game has a complete weather system (clouds, an overcast layer, rain with its
 
 Caves and dungeons keep their own lighting and fog, with no rain. GSO Offline Server's `/time` command still sets the clock.
 
+## Ambient lights and particles
+
+Lights and particles the game never had, found by name in each scene and attached to the objects they belong to:
+
+- **Street lamps** glow and light their surroundings from dusk to dawn. Those without a light of their own get one.
+- **Standing torches** without a fire get the same flame, light, sparks and smoke as the lit ones.
+- **Fires, torches and lanterns** flicker instead of glowing steadily.
+- **Windows** of houses and the monastery glow warmly at night, in about 60% of buildings.
+- **Lightning** strikes in heavy rain: a bolt in the distance, a flash, and thunder after the time sound takes to arrive. The thunder is synthesised, because the game has no thunder sound.
+- **Particles around you:**
+  - Fireflies on dry nights.
+  - Dust and pollen on fair days.
+  - Mist over the sea at dawn and in fog.
+  - Leaves falling from broadleaf trees and bushes.
+  - Smoke rising from the tops of roofs.
+
+  The smoke source is found by probing roofs for a narrow peak, which picks real chimneys and also the tips of pointed roofs.
+
+Caves have none of the outdoor effects. Each part can be switched off under `[Ambience]`. A new zone is scanned over a few dozen frames (about 3 ms each), so loading doesn't hitch.
+
 ## Building a texture pack
 
 Requirements: Windows, Python 3.10+, a Vulkan-capable GPU, and the plugin installed (next section). The Python venv and the pinned, hash-checked Real-ESRGAN build are set up automatically on first use.
@@ -151,6 +171,11 @@ Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 | `Weather.MinMinutes` / `MaxMinutes` | 4 / 10 | how long each kind of weather lasts |
 | `Weather.BlendSeconds` | 60 | how long a change of weather takes |
 | `Weather.Mood` | 1 | time-of-day and weather tint (with enhanced lighting), 0 = off |
+| `Ambience.Enabled` | true | extra lights and particles (restart to switch completely) |
+| `Ambience.Lamps` / `TorchFires` / `Flicker` / `Windows` / `Lightning` | true | |
+| `Ambience.LitWindowShare` | 0.6 | share of buildings with lit windows |
+| `Ambience.Fireflies` / `DustMotes` / `WaterMist` / `FallingLeaves` / `ChimneySmoke` | true | |
+| `Ambience.ParticleDensity` | 1 | amount of particles, 0 to 3 |
 
 The game folder is found automatically in any Steam library. Override it with `-GameDir`, `GSO_GAME_DIR` or `-p:GameDir=`.
 

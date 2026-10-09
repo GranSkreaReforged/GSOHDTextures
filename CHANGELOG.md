@@ -4,6 +4,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 `release.ps1` turns the Unreleased heading into a version heading.
 
 ## [Unreleased]
+### Changed
+- README: the before-and-after screenshots are retaken with this version, and the weather and ambient lights sections have screenshots of their own (sunset, fog, rain, dusk and night).
 
 ## [1.1.0] - 2026-10-09
 ### Added

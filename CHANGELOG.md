@@ -5,7 +5,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 ### Changed
-- Branching: work happens on `feature/<area>/<name>` branches merged into `dev`, and each release is one merge of `dev` into `main` (README, "Branches and releasing").
+- Branching: work happens on `feature/<area>/<name>` branches merged into `dev`, and each release is one merge of `dev` into `main` (README, "Branches and releasing"). Risky, large or core changes, and every release, go through a reviewed pull request.
+- Dev builds and release builds: every `build.ps1` build is a dev build, versioned like `1.0.0-dev+<branch>.<commit>` and logged at startup with "(dev build)". Only `release.ps1` makes release builds, with the plain version.
+- `release.ps1` runs on `dev`: its "Release vX" commit carries that version's CHANGELOG section, which becomes the `dev` -> `main` pull request.
 
 ## [1.0.0] - 2026-10-08
 ### Added

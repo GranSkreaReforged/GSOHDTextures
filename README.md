@@ -207,8 +207,9 @@ A release (PowerShell 7) packages the plugin only, never textures. It runs on `d
 
 ```powershell
 git switch dev; git pull --ff-only
-.\release.ps1 -Version x.y.z -DryRun
+.\release.ps1 -Version x.y.z -DryRun   # packages into dist\x.y.z\: both zips and SHA256SUMS.txt
 .\release.ps1 -Version x.y.z        # commits and tags on dev; it never pushes
+# write the player-facing notes into the same folder: dist\x.y.z\RELEASE_NOTES-x.y.z.md
 git push origin dev                 # then open the pull request dev -> main from that commit
 # once it's merged:
 git push origin vx.y.z

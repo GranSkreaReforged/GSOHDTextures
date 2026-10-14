@@ -33,6 +33,7 @@
     <Reference Include="UnityEngine.IMGUIModule" HintPath="$(ManagedDir)UnityEngine.IMGUIModule.dll" Private="false" />
     <Reference Include="UnityEngine.InputModule" HintPath="$(ManagedDir)UnityEngine.InputModule.dll" Private="false" />
     <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(ManagedDir)UnityEngine.TextRenderingModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UnityWebRequestModule" HintPath="$(ManagedDir)UnityEngine.UnityWebRequestModule.dll" Private="false" />
     <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDir)UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="UnityEngine.ImageConversionModule" HintPath="$(ManagedDir)UnityEngine.ImageConversionModule.dll" Private="false" />
     <Reference Include="UnityEngine.TerrainModule" HintPath="$(ManagedDir)UnityEngine.TerrainModule.dll" Private="false" />

@@ -24,6 +24,8 @@ namespace GSOHDTextures
         internal static ConfigEntry<KeyboardShortcut> ReloadKey;
         internal static ConfigEntry<bool> LogReplacements;
         internal static ConfigEntry<bool> RecordSeenTextures;
+        internal static ConfigEntry<bool> ShowVersion;
+        internal static ConfigEntry<bool> CheckForUpdates;
         internal static ConfigEntry<bool> UiEnabled;
         internal static ConfigEntry<bool> UiAutoScale;
         internal static ConfigEntry<float> UiUserScale;
@@ -77,6 +79,9 @@ namespace GSOHDTextures
             ReloadKey = Config.Bind("Debug", "ReloadKey", new KeyboardShortcut(KeyCode.F9), "Reload the texture folder and re-apply everything (for iterating on textures in-game).");
             LogReplacements = Config.Bind("Debug", "LogReplacements", false, "Log every texture as it is replaced.");
             RecordSeenTextures = Config.Bind("Debug", "RecordSeenTextures", false, "Append the key of every texture the game uses to BepInEx/GSOHDTextures-seen.txt (with or without a replacement). Feed it to pack.ps1 -OnlyList to build a pack of what you actually see.");
+
+            ShowVersion = Config.Bind("Updates", "ShowVersion", true, "Show the mod's version in the top-left corner.");
+            CheckForUpdates = Config.Bind("Updates", "CheckForUpdates", true, "At startup, ask GitHub for the latest release and add \"NEW UPDATE AVAILABLE\" to the version line if there is a newer one. Only the version is read; nothing is downloaded.");
 
             UiEnabled = Config.Bind("UI", "Enabled", true, "Scale the game's menus, windows and HUD for high-resolution screens. Needs a restart to turn on or off completely.");
             UiAutoScale = Config.Bind("UI", "AutoScale", true, "Grow the classic interface with the screen height, so it looks as it was designed on a 1080p screen (1440p = 133%, 4K = 200%). Off: native pixels times Scale.");
@@ -147,6 +152,8 @@ namespace GSOHDTextures
                 UiSettings.Patch(harmony);
                 host.AddComponent<UiController>();
             }
+            if (ShowVersion.Value)
+                UpdateOverlay.Create(host, Name, Version, PluginInfo.ReleaseBuild, "GSOHDTextures", Guid, CheckForUpdates.Value);
 
             Log.LogInfo($"{Name} {PluginInfo.BuildVersion} loaded{(PluginInfo.ReleaseBuild ? "" : " (dev build)")}. Textures: {(Enabled.Value ? TextureDir : "off")}, UI scaling: {(UiEnabled.Value ? "on" : "off")}, enhanced lighting: {(GfxEnabled.Value ? "on" : "off")} ({GfxToggleKey.Value} toggles), weather: {(WeatherEnabled.Value ? WeatherDayMinutes.Value + " min days" : "off")}.");
         }

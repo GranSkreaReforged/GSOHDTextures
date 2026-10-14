@@ -5,6 +5,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-14
+### Added
+- The mod's version is shown in small text in the top-left corner, with "NEW UPDATE AVAILABLE" in gold when a newer release is out on GitHub. The game asks GitHub once at startup; only the version number is read and nothing is downloaded. Turn either off with `Updates.ShowVersion` and `Updates.CheckForUpdates` in the config.
+
 ## [1.1.1] - 2026-10-11
 ### Changed
 - Each release is packaged into its own folder, `dist\<version>\`, with both zips, `SHA256SUMS.txt` and the release notes (`RELEASE_NOTES-<version>.md`, written by hand). Releases used to share one `dist\` folder, where each release overwrote `SHA256SUMS.txt`.

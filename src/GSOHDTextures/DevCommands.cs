@@ -11,6 +11,9 @@ namespace GSOHDTextures
         // The game puts the local player's meshes on this layer (Scr_skinner).
         private const int LocalPlayerLayer = 22;
 
+        // hdupdatecheck <version>: reruns the GitHub update check as if that version were installed (e.g. 1.0.0).
+        private static void HdUpdateCheck(string[] args) => UpdateOverlay.Recheck(args[1]);
+
         // frames [seconds]: frame-time statistics and the worst hitches, with the plugin's share of each.
         private static void Frames(string[] args)
         {

@@ -161,6 +161,8 @@ Settings are in `BepInEx/config/gso.hdtextures.cfg`:
 | `Debug.ReloadKey` | F9 | |
 | `Debug.LogReplacements` | false | |
 | `Debug.RecordSeenTextures` | false | writes `BepInEx/GSOHDTextures-seen.txt` |
+| `Updates.ShowVersion` | true | the version in the top-left corner |
+| `Updates.CheckForUpdates` | true | ask GitHub for the latest release at startup and add "NEW UPDATE AVAILABLE" if there's a newer one (reads the version only, downloads nothing) |
 | `UI.Enabled` | true | scale the interface (restart to switch completely) |
 | `UI.AutoScale` | true | grow with the screen height (1080 px = 100%) |
 | `UI.Scale` | 1 | your preference on top, 0.5 to 3; also Video options → Interface scale, or Ctrl + = / - / 0 |

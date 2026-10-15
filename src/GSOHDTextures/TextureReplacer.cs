@@ -86,6 +86,7 @@ namespace GSOHDTextures
             store.Reload(Plugin.TextureDir);
             Plugin.Log.LogInfo($"{store.FileCount} replacement textures indexed.");
             SceneManager.sceneLoaded += (scene, mode) => scanPending = true;
+            Application.logMessageReceived += OnUnityLog;
         }
 
         private bool paused;
@@ -123,7 +124,7 @@ namespace GSOHDTextures
                 for (int i = 0; i < all.Length; i++) ScanMaterial(all[i], false);
                 ScanTerrains(false);
                 if (store.LoadedCount != before)
-                    Plugin.Log.LogInfo($"Loaded {store.LoadedCount - before} textures in {clock.ElapsedMilliseconds} ms ({store.LoadedCount}/{store.FileCount} in use).");
+                    Plugin.Log.LogInfo($"Loaded {store.LoadedCount - before} textures in {clock.ElapsedMilliseconds} ms ({store.LoadedCount}/{store.FileCount} in use). {DevCommands.HeapLine()}");
             }
             else
             {
@@ -191,7 +192,7 @@ namespace GSOHDTextures
             var shader = mat.shader;
             if (shader == null) return;
             if (!shaderProps.TryGetValue(shader, out var has))
-                shaderProps[shader] = has = props.Where(p => mat.HasProperty(p.Id)).ToArray();
+                shaderProps[shader] = has = TextureProps(mat);
             foreach (var prop in has)
             {
                 var replacement = Replace(mat.GetTexture(prop.Id), prop.Linear, async, out var original, out bool pending);
@@ -205,6 +206,35 @@ namespace GSOHDTextures
                 mat.SetTexture(prop.Id, replacement);
                 swaps.Add(new Swap { Material = mat, Prop = prop.Id, Original = original });
             }
+        }
+
+        // Set while TextureProps reads a property that may not be a texture.
+        private static bool probing, notATexture;
+
+        private static void OnUnityLog(string message, string stack, LogType type)
+        {
+            if (probing && type == LogType.Error && message.Contains("doesn't have a texture property")) notATexture = true;
+        }
+
+        /// <summary>
+        /// The listed properties this material's shader has as textures. HasProperty is also true for a number of the
+        /// same name (many shaders have a float "_Metallic"), and GetTexture on one logs an error with a stack trace
+        /// every time: about 1,100 a second from the periodic scans, and a torrent at every scene load (bug #11). So
+        /// each candidate is read once per shader while listening for that error, and dropped if it fires.
+        /// </summary>
+        private Prop[] TextureProps(Material mat)
+        {
+            var result = new List<Prop>();
+            foreach (var p in props)
+            {
+                if (!mat.HasProperty(p.Id)) continue;
+                probing = true;
+                notATexture = false;
+                try { mat.GetTexture(p.Id); }
+                finally { probing = false; }
+                if (!notATexture) result.Add(p);
+            }
+            return result.ToArray();
         }
 
         // Terrain textures that are still streaming are picked up by the next cycle.
@@ -263,9 +293,10 @@ namespace GSOHDTextures
         /// <summary>One line per checked texture property of <paramref name="mat"/>: what it shows now, and the original key.</summary>
         internal IEnumerable<string> Describe(Material mat)
         {
-            foreach (var prop in props)
+            if (mat.shader == null) yield break;
+            if (!shaderProps.TryGetValue(mat.shader, out var has)) shaderProps[mat.shader] = has = TextureProps(mat);
+            foreach (var prop in has)
             {
-                if (!mat.HasProperty(prop.Id)) continue;
                 var tex = mat.GetTexture(prop.Id) as Texture2D;
                 if (tex == null) continue;
                 if (!store.IsReplacement(tex))

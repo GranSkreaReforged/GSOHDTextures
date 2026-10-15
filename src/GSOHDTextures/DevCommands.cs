@@ -14,6 +14,18 @@ namespace GSOHDTextures
         // hdupdatecheck <version>: reruns the GitHub update check as if that version were installed (e.g. 1.0.0).
         private static void HdUpdateCheck(string[] args) => UpdateOverlay.Recheck(args[1]);
 
+        // heap: Mono's managed heap (reserved and used), GC.GetTotalMemory and the process's private memory. Mono 2.x
+        // (Boehm, non-moving) can fail to grow its heap with plenty of system memory free (bug #11).
+        private static void Heap(string[] args) => Plugin.Log.LogInfo("[dev] " + HeapLine());
+
+        internal static string HeapLine()
+        {
+            const double MB = 1024 * 1024;
+            var p = System.Diagnostics.Process.GetCurrentProcess();
+            return $"Mono heap {UnityEngine.Profiling.Profiler.GetMonoHeapSizeLong() / MB:F0} MB, used {UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / MB:F0} MB, " +
+                $"GC total {System.GC.GetTotalMemory(false) / MB:F0} MB, process private {p.PrivateMemorySize64 / MB:F0} MB";
+        }
+
         // frames [seconds]: frame-time statistics and the worst hitches, with the plugin's share of each.
         private static void Frames(string[] args)
         {

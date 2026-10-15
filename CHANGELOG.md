@@ -4,6 +4,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 `release.ps1` turns the Unreleased heading into a version heading.
 
 ## [Unreleased]
+
+## [1.2.1] - 2026-10-15
 ### Fixed
 - The game no longer floods its log with "Material doesn't have a texture property '_Metallic'" errors: about 1,100 a second while playing and tens of thousands at every zone load, each with a stack trace handed to every log listener. Many shaders have a number named `_Metallic` (and a few other names on the replacement list), and the texture scan asked for it as a texture each time. Each shader's properties are now checked once. The Unity log for a session drops from hundreds of thousands of lines to under two thousand. This churn ran during world entry, where the occasional out-of-memory crash on startup happens (#11).
 
